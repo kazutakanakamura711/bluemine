@@ -50,7 +50,8 @@ describe('Tasks API', () => {
       }),
     );
     prisma = app.get(PrismaService);
-    await app.init();
+    // テスト中は同じHTTPサーバーを維持し、Supertestによるリクエストごとの起動・終了を避ける。
+    await app.listen(0, '127.0.0.1');
 
     const supabaseUrl = process.env.SUPABASE_URL;
     const secretKey = process.env.SUPABASE_SECRET_KEY;
@@ -102,7 +103,13 @@ describe('Tasks API', () => {
       .set('Authorization', `Bearer ${accessToken}`);
     expect(
       authResponse.status,
-      JSON.stringify(authResponse.body?.message),
+      JSON.stringify({
+        body: authResponse.body,
+        contentType: authResponse.headers['content-type'],
+        text: authResponse.body?.message
+          ? undefined
+          : authResponse.text?.slice(0, 200),
+      }),
     ).toBe(200);
   });
 
@@ -224,6 +231,424 @@ describe('Tasks API', () => {
       },
     });
   }
+
+  describe('PATCH /api/projects/:projectId/tasks/:taskId', () => {
+    function patchTask(
+      projectId: string,
+      taskId: string,
+      body: Record<string, unknown>,
+    ) {
+      return request(app.getHttpServer())
+        .patch(`/api/projects/${projectId}/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(body);
+    }
+
+    it.each(['owner', 'member'] as const)(
+      '%sは7項目を更新でき、既存の13項目の形式で返す',
+      async (role) => {
+        const project = await createProjectForRole(role);
+        const task = await createTask(project.id, {
+          title: 'Original',
+          updatedAt: new Date('2026-10-31T00:00:00.000Z'),
+        });
+        await createTask(project.id);
+        const assignee = await createOtherUser();
+        await prisma.projectMember.create({
+          data: { projectId: project.id, userId: assignee.id, role: 'viewer' },
+        });
+        const before = await readProjectState();
+        const { body } = await patchTask(project.id, task.id, {
+          title: '  Updated  ',
+          description: '  Description\n2行目  ',
+          status: 'done',
+          priority: 'high',
+          assigneeId: assignee.id,
+          startDate: '2026-11-10',
+          dueDate: '2026-11-10',
+        }).expect(200);
+        const saved = await prisma.task.findUniqueOrThrow({
+          where: { id: task.id },
+        });
+        expect(body).toEqual({
+          id: task.id,
+          projectId: project.id,
+          number: task.number,
+          title: 'Updated',
+          description: 'Description\n2行目',
+          status: 'done',
+          priority: 'high',
+          assignee: { id: assignee.id, name: null },
+          reporter: { id: task.reporterId, name: null },
+          startDate: '2026-11-10',
+          dueDate: '2026-11-10',
+          createdAt: task.createdAt.toISOString(),
+          updatedAt: saved.updatedAt.toISOString(),
+        });
+        expect(saved).toEqual({
+          ...task,
+          title: 'Updated',
+          description: 'Description\n2行目',
+          status: 'done',
+          priority: 'high',
+          assigneeId: assignee.id,
+          startDate: new Date('2026-11-10T00:00:00.000Z'),
+          dueDate: new Date('2026-11-10T00:00:00.000Z'),
+          updatedAt: saved.updatedAt,
+        });
+        expect(saved.updatedAt.getTime()).toBeGreaterThan(
+          task.updatedAt.getTime(),
+        );
+        expect(await readProjectState()).toEqual(
+          before.map((item) => ({
+            ...item,
+            tasks: item.tasks.map((existing) =>
+              existing.id === task.id ? saved : existing,
+            ),
+          })),
+        );
+        await request(app.getHttpServer())
+          .get(`/api/projects/${project.id}/tasks/${task.id}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200)
+          .expect(body);
+      },
+    );
+
+    it('statusだけの更新では、担当者・日付などの省略項目を維持する', async () => {
+      const project = await createProject();
+      const task = await createTask(project.id, {
+        title: 'Keep title',
+        description: 'Keep description',
+        priority: 'high',
+        assigneeId: userId,
+        startDate: new Date('2026-11-10T00:00:00.000Z'),
+        dueDate: new Date('2026-11-20T00:00:00.000Z'),
+      });
+      await patchTask(project.id, task.id, { status: 'done' }).expect(200);
+      expect(
+        await prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
+      ).toEqual({
+        ...task,
+        status: 'done',
+        updatedAt: expect.any(Date),
+      });
+    });
+
+    it.each([null, ' \n\t '])(
+      '説明の%jと担当者・日付のnullは解除として保存する',
+      async (description) => {
+        const project = await createProject();
+        const task = await createTask(project.id, {
+          title: 'Clear optional fields',
+          description: 'Description',
+          assigneeId: userId,
+          startDate: new Date('2026-11-10T00:00:00.000Z'),
+          dueDate: new Date('2026-11-20T00:00:00.000Z'),
+        });
+        const { body } = await patchTask(project.id, task.id, {
+          description,
+          assigneeId: null,
+          startDate: null,
+          dueDate: null,
+        }).expect(200);
+        expect(body).toMatchObject({
+          description: null,
+          assignee: null,
+          startDate: null,
+          dueDate: null,
+        });
+        expect(
+          await prisma.task.findUniqueOrThrow({ where: { id: task.id } }),
+        ).toEqual({
+          ...task,
+          description: null,
+          assigneeId: null,
+          startDate: null,
+          dueDate: null,
+          updatedAt: expect.any(Date),
+        });
+      },
+    );
+
+    it('正規化後にすべて同じ値なら200を返し、更新日時を維持する', async () => {
+      const project = await createProject();
+      const task = await createTask(project.id, {
+        title: 'Unchanged',
+        description: 'Description',
+        assigneeId: userId,
+        startDate: new Date('2026-11-10T00:00:00.000Z'),
+        dueDate: new Date('2026-11-20T00:00:00.000Z'),
+        updatedAt: new Date('2026-10-31T00:00:00.000Z'),
+      });
+      const before = await readProjectState();
+      const { body } = await patchTask(project.id, task.id, {
+        title: '  Unchanged  ',
+        description: '  Description  ',
+        status: task.status,
+        priority: task.priority,
+        assigneeId: userId,
+        startDate: '2026-11-10',
+        dueDate: '2026-11-20',
+      }).expect(200);
+      expect(body.updatedAt).toBe(task.updatedAt.toISOString());
+      expect(await readProjectState()).toEqual(before);
+    });
+
+    it.each([
+      { title: 'a'.repeat(200), description: 'a'.repeat(5000) },
+      { startDate: '0001-01-01', dueDate: '9999-12-31' },
+      { startDate: '2028-02-29', dueDate: '2028-02-29' },
+    ])('文字数・日付の境界値を受け付ける: %j', async (input) => {
+      const project = await createProject();
+      const task = await createTask(project.id);
+      const { body } = await patchTask(project.id, task.id, input).expect(200);
+      expect(body).toMatchObject(input);
+    });
+
+    it.each([
+      ['空本文', {}],
+      ['title null', { title: null }],
+      ['title数値', { title: 1 }],
+      ['空title', { title: '' }],
+      ['空白title', { title: ' \n\t ' }],
+      ['title 201文字', { title: 'a'.repeat(201) }],
+      ['description数値', { description: 1 }],
+      ['description 5001文字', { description: 'a'.repeat(5001) }],
+      ['status不正', { status: 'closed' }],
+      ['status null', { status: null }],
+      ['priority不正', { priority: 'urgent' }],
+      ['priority null', { priority: null }],
+      ['assigneeId形式不正', { assigneeId: 'not-a-uuid' }],
+      ['assigneeId空文字', { assigneeId: '' }],
+      ['assigneeId数値', { assigneeId: 1 }],
+      ['開始日不正', { startDate: '2026-02-29' }],
+      ['期限不正', { dueDate: '2026-04-31' }],
+      ['開始日空文字', { startDate: '' }],
+      ['期限空文字', { dueDate: '' }],
+      ['開始日に時刻', { startDate: '2026-11-10T00:00:00Z' }],
+      ['期限に時刻', { dueDate: '2026-11-10T00:00:00+09:00' }],
+      ['日付の0埋めなし', { startDate: '2026-1-1' }],
+      ['0年', { dueDate: '0000-01-01' }],
+      ['日付数値', { startDate: 20261110 }],
+      [
+        '期限が開始日より前',
+        { startDate: '2026-11-10', dueDate: '2026-11-09' },
+      ],
+      ['number指定', { number: 99 }],
+      [
+        'reporterId指定',
+        { reporterId: '11111111-1111-4111-8111-111111111111' },
+      ],
+      ['projectId指定', { projectId: 'another' }],
+      ['userId指定', { userId: 'another' }],
+      ['id指定', { id: 'another' }],
+      ['createdAt指定', { createdAt: '2026-11-10T00:00:00Z' }],
+      ['updatedAt指定', { updatedAt: '2026-11-10T00:00:00Z' }],
+      ['定義外の項目', { extra: true }],
+    ])(
+      '%sは400で拒否し、Task・Project・参加情報を変更しない',
+      async (_label, input) => {
+        const project = await createProject();
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        await patchTask(project.id, task.id, input).expect(400);
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it.each([undefined, 'null', '[]'])(
+      'JSONオブジェクトでない本文%sは400で拒否する',
+      async (body) => {
+        const project = await createProject();
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        const pending = request(app.getHttpServer())
+          .patch(`/api/projects/${project.id}/tasks/${task.id}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .set('Content-Type', 'application/json');
+        if (body !== undefined) pending.send(body);
+        await pending.expect(400);
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it.each([undefined, 'Basic invalid', 'Bearer invalid-token'])(
+      '認証ヘッダー%sは401で拒否する',
+      async (authorization) => {
+        const project = await createProject();
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        const pending = request(app.getHttpServer())
+          .patch(`/api/projects/${project.id}/tasks/${task.id}`)
+          .send({ status: 'done' });
+        if (authorization) pending.set('Authorization', authorization);
+        await pending.expect(401);
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it.each([{ email: undefined }, { email_confirmed_at: undefined }])(
+      'メール条件を満たさなければ403で拒否する: %j',
+      async (emailState) => {
+        const project = await createProject();
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        const authService = app.get(AuthService);
+        const verifiedUser = await authService.verifyAccessToken(accessToken);
+        vi.spyOn(authService, 'verifyAccessToken').mockResolvedValueOnce({
+          ...verifiedUser,
+          ...emailState,
+        });
+        await patchTask(project.id, task.id, { status: 'done' }).expect(403);
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it.each([false, true])(
+      '非参加者は404、viewerは403を返す（archive=%s）',
+      async (isArchived) => {
+        const other = await createOtherUser();
+        const project = await createProject(other.id, isArchived);
+        const task = await createTask(project.id);
+        const viewerProject = await createProjectForRole('viewer', isArchived);
+        const viewerTask = await createTask(viewerProject.id);
+        const before = await readProjectState();
+        for (const projectId of [project.id, 'not-found']) {
+          await patchTask(projectId, task.id, { status: 'done' })
+            .expect(404)
+            .expect(projectNotFound);
+        }
+        await patchTask(viewerProject.id, viewerTask.id, { status: 'done' })
+          .query({ userId: viewerProject.ownerId })
+          .expect(403);
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it('ownerIdが本人でも、参加情報の削除後は同じtokenで404になる', async () => {
+      const project = await createProject();
+      const task = await createTask(project.id);
+      await patchTask(project.id, task.id, { status: 'in_progress' }).expect(
+        200,
+      );
+      await prisma.projectMember.delete({
+        where: { projectId_userId: { projectId: project.id, userId } },
+      });
+      const before = await readProjectState();
+      await patchTask(project.id, task.id, { status: 'done' })
+        .expect(404)
+        .expect(projectNotFound);
+      expect(await readProjectState()).toEqual(before);
+    });
+
+    it('両Projectのownerでも、別ProjectのTaskと存在しないTaskは同じ404になる', async () => {
+      const project = await createProject();
+      const other = await createProject();
+      const otherTask = await createTask(other.id);
+      const before = await readProjectState();
+      for (const taskId of [otherTask.id, 'not-found']) {
+        await patchTask(project.id, taskId, { status: 'done' })
+          .expect(404)
+          .expect({
+            message: 'タスクが見つかりません',
+            error: 'Not Found',
+            statusCode: 404,
+          });
+      }
+      expect(await readProjectState()).toEqual(before);
+    });
+
+    it.each(['owner', 'member'] as const)(
+      'アーカイブ済みでは%sも同じ値の更新を409で拒否する',
+      async (role) => {
+        const project = await createProjectForRole(role, true);
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        await patchTask(project.id, task.id, { title: task.title }).expect(409);
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it.each(['owner', 'member', 'viewer'] as const)(
+      '同じProjectの%sを担当者に設定できる',
+      async (role) => {
+        const project = await createProject();
+        const task = await createTask(project.id);
+        const assignee =
+          role === 'owner'
+            ? await prisma.user.findUniqueOrThrow({ where: { id: userId } })
+            : await createOtherUser();
+        if (role !== 'owner') {
+          await prisma.projectMember.create({
+            data: { projectId: project.id, userId: assignee.id, role },
+          });
+        }
+        const { body } = await patchTask(project.id, task.id, {
+          assigneeId: assignee.id,
+        }).expect(200);
+        expect(body.assignee).toEqual({ id: assignee.id, name: null });
+      },
+    );
+
+    it('不在・非参加・別Projectだけの参加者は担当者に指定できない', async () => {
+      const project = await createProject();
+      const task = await createTask(project.id);
+      const outsider = await createOtherUser();
+      await createProject(outsider.id);
+      const before = await readProjectState();
+      for (const assigneeId of [randomUUID(), outsider.id]) {
+        await patchTask(project.id, task.id, { assigneeId })
+          .expect(400)
+          .expect({
+            message: '担当者は同じプロジェクトの参加者を指定してください',
+            error: 'Bad Request',
+            statusCode: 400,
+          });
+      }
+      expect(await readProjectState()).toEqual(before);
+    });
+
+    it.each([{ startDate: '2026-11-21' }, { dueDate: '2026-11-09' }])(
+      '片方だけの日付変更も保存済みの日付と合わせて400で拒否する: %j',
+      async (input) => {
+        const project = await createProject();
+        const task = await createTask(project.id, {
+          title: 'Dates',
+          startDate: new Date('2026-11-10T00:00:00.000Z'),
+          dueDate: new Date('2026-11-20T00:00:00.000Z'),
+        });
+        const before = await readProjectState();
+        await patchTask(project.id, task.id, input).expect(400).expect({
+          message: '期限は開始日以降の日付を指定してください',
+          error: 'Bad Request',
+          statusCode: 400,
+        });
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it('報告者が脱退済みでもTaskを更新でき、報告者への参照を維持する', async () => {
+      const project = await createProject();
+      const reporter = await createOtherUser();
+      const membership = await prisma.projectMember.create({
+        data: { projectId: project.id, userId: reporter.id, role: 'member' },
+      });
+      const task = await createTask(project.id, {
+        title: 'Former reporter',
+        reporterId: reporter.id,
+      });
+      await prisma.projectMember.delete({ where: { id: membership.id } });
+      const { body } = await patchTask(project.id, task.id, {
+        status: 'done',
+      }).expect(200);
+      expect(body.reporter).toEqual({ id: reporter.id, name: null });
+      expect(
+        (await prisma.task.findUniqueOrThrow({ where: { id: task.id } }))
+          .reporterId,
+      ).toBe(reporter.id);
+    });
+  });
 
   describe('POST /api/projects/:projectId/tasks', () => {
     function postTask(
@@ -1301,7 +1726,9 @@ describe('Tasks API', () => {
           .get(`/api/projects/${project.id}/tasks/${task.id}`)
           .set('Authorization', `Bearer ${accessToken}`)
           .expect('Content-Type', /json/)
-          .expect(200);
+          .expect((response) => {
+            expect(response.status, JSON.stringify(response.body)).toBe(200);
+          });
 
         expect(response.body).toEqual({
           id: task.id,

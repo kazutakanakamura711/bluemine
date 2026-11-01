@@ -18,6 +18,7 @@ Bruno で [redmine-next-nest-api](./redmine-next-nest-api/) をコレクショ�
 | [update-project-member-role](./redmine-next-nest-api/update-project-member-role.yml) | NestJS: `PATCH /api/projects/:projectId/members/:memberId` | owner がメンバーの role を変更             |
 | [get-tasks](./redmine-next-nest-api/get-tasks.yml)                                   | NestJS: `GET /api/projects/:projectId/tasks`               | 参加者がタスク一覧を取得                   |
 | [create-task](./redmine-next-nest-api/create-task.yml)                               | NestJS: `POST /api/projects/:projectId/tasks`              | owner・memberがタスクを作成                |
+| [update-task](./redmine-next-nest-api/update-task.yml)                               | NestJS: `PATCH /api/projects/:projectId/tasks/:taskId`     | owner・memberがタスクを部分更新            |
 | [supabase-update-password](./redmine-next-nest-api/supabase-update-password.yml)     | Supabase: `PUT /auth/v1/user`                              | ログインユーザーのパスワードを変更         |
 
 NestJS は `http://localhost:3001`、ローカル Supabase は `http://127.0.0.1:54321` で動きます。
@@ -250,6 +251,15 @@ Bodyはtitleだけでも送信できます。担当者を指定する場合は`a
 成功時は201で、採番した`number`と本人の`reporter`を含むTaskが返ります。続けて一覧・詳細で保存結果を確認できます。`number`・`reporterId`は送信しません。
 日付は`YYYY-MM-DD`とし、期限を開始日より前にすると400、viewer本人の作成は403、アーカイブ済みProjectでは409になります。
 番号競合の409になった場合は、Studioで手動作成したTaskの最大番号とProjectの採番カウンターの整合性を確認します。開発データの補正は別途承認を得て行い、番号を詰めたりカウンターを下げたりしません。
+
+## タスクを更新する
+
+[update-task](./redmine-next-nest-api/update-task.yml)を開き、リクエストのVariablesに対象の`projectId`と`taskId`を設定します。`taskId`には一覧・詳細の`id`を使い、表示用の番号は使いません。LocalのSecretsの`accessToken`には、対象Projectのowner・member本人のtokenを設定します。
+
+初期のBodyは`{"status":"in_progress"}`です。省略した項目は現在値を維持します。タイトル・説明・優先度・担当者・日付も更新する場合は、変更したい項目だけをJSONへ追加します。担当者にはメンバー一覧の`userId`、日付には`YYYY-MM-DD`を指定します。
+説明・担当者・日付を`null`にすると、その項目を解除します。タイトル・状態・優先度の`null`と、空の本文`{}`は400になります。番号・報告者は送信しません。
+
+Sendして200と更新後のTaskが返ることを確認し、`get-task`でも保存結果を確認します。同じ値だけを送信した場合は200となり、`updatedAt`も維持します。viewerの更新は403、アーカイブ済みProjectは409です。入力とエラーの詳細は[更新APIの仕様](../docs/UI_API.md#タスク更新-patch-apiprojectsprojectidtaskstaskid)を参照してください。
 
 ## Swagger と公式資料
 
