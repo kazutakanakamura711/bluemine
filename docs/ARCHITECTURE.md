@@ -209,6 +209,9 @@ Task作成も同じController → Service → Repositoryの構成に追加する
 Repositoryはtransaction内でProject行をロックし、本人のmembership・role、アーカイブ状態、任意の担当者のmembershipを最新状態で再確認してから、採番用カウンターの増加とTask作成を行う。失敗時は両方を取り消す。既存のメンバー操作と同様、保存時の判定結果はstatusでServiceへ返し、ServiceがHTTP例外へ変換する。番号の一意制約違反もRepositoryで扱い、HTTPの知識を持ち込まない。
 Controllerの同じファイル内の`toTaskResponse()`で一覧・詳細・作成の公開項目と日付・日時の形式を揃える。作成は201を返す。DDDモデル・UseCase・Repository interfaceの導入やschema・migrationの変更は含めない。
 
+Task更新は`PATCH /api/projects/:projectId/tasks/:taskId`を同じ構成へ追加する。`UpdateTaskDto`は7項目を任意入力とし、省略とnullを区別して形式を検証する。作成・更新の日付形式は共通の`TaskDateConstraint`で検証する。Serviceは本人の参加資格・role、空の更新内容、文字列の正規化と日付変換を扱い、指定項目だけをRepositoryへ渡す。
+Repositoryは同じProject行のロック後に最新の本人・アーカイブ状態・Taskの所属・担当者を確認し、最新Taskと指定日付を合わせて前後関係を検証する。同値なら保存せず、値が変わる場合は指定された7項目だけを更新する。判定結果はstatusでServiceへ返してHTTP例外へ変換し、Controllerは共通の`toTaskResponse()`で200の単一Taskを返す。
+
 メンバー削除の `ProjectsRepository.deleteProjectMember()` は、Project行をロックし、アーカイブ・対象の所属・owner保護を再確認してから、対象Userの担当Taskを `projectId` と `assigneeId` で限定して未担当へ戻し、参加情報を削除する。担当解除と参加情報削除は同じtransactionに含める。Serviceは従来の認証済み本人のmembership・owner権限の確認を担当し、Controllerの204応答は維持する。
 Projectを返すControllerの各操作では、同じファイル内の `toProjectResponse()` で公開項目と日時の文字列変換を揃える。採番用の `lastTaskNumber` などDBの内部カラムをそのまま返さず、詳細取得だけ本人の `currentUserRole` を追加する。
 

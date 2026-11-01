@@ -114,7 +114,7 @@ role 変更 API は role のみの必須入力、ProjectMember ID のパラメ�
 同じ role の成功、owner 保護・アーカイブ禁止、400・401・403・404・409を説明しています。
 削除 API は ProjectMember ID の指定、本文なしの204、User・Supabase Auth アカウントの保持、
 401・403・404・409、owner 保護・アーカイブ判定の優先を説明しています。
-Tasks には一覧・詳細・作成 API の Bearer 認証、Project ID、詳細の Task ID、作成入力、200・201の応答と400・401・403・404・409を記載しています。
+Tasks には一覧・詳細・作成・更新 API の Bearer 認証、Project ID、詳細・更新の Task ID、作成・更新入力、200・201の応答と400・401・403・404・409を記載しています。
 `TaskResponseDto` は status・priority の enum、日付の `date`、日時の `date-time`、任意項目の nullable を説明します。
 **Authorize** に Supabase の `access_token` の値だけを入力してから、**Try it out → Execute** で実行できます。
 `Bearer` の接頭辞は Swagger が付けるため、入力に含めません。
@@ -290,7 +290,7 @@ Project不在・非参加は404・「プロジェクトが見つかりません�
 参加Project内のTask不在と別ProjectのTaskは、同じ404・「タスクが見つかりません」で扱います。両Projectに参加していても所属の違うTaskは取得できません。
 レスポンス例とエラー本文は [UI_API.md](../../docs/UI_API.md#タスク詳細-get-apiprojectsprojectidtaskstaskid) を参照してください。
 
-Task一覧・詳細Webと、PR #43の番号・担当者・報告者の追加はマージ済みです。今回の変更は作成APIに絞り、作成画面・更新・削除は後続で追加します。
+Task一覧・詳細WebとPR #43の番号・担当者・報告者、PR #44の作成API、PR #45の作成画面はマージ済みです。更新APIの後に更新画面へ進み、削除は別の操作として追加します。
 
 ## Task 作成 API
 
@@ -316,7 +316,17 @@ Task一覧・詳細Webと、PR #43の番号・担当者・報告者の追加は�
 
 Prisma StudioでTaskだけを作成しても`Project.lastTaskNumber`は増えません。API導入前にProjectごとの最大番号と比較し、カウンターが小さい場合は承認を得て補正します。カウンターを下げたり、既存Taskを自動変更する処理はありません。
 
-作成のAPI E2Eは、認証・認可・入力の境界値・レスポンス・DBへの保存に加え、同時作成・削除後の番号再利用防止・失敗時のrollbackを確認します。競合テストはPostgreSQLの実際のロック待ちを確認し、メンバー削除・role変更・アーカイブと作成の保存順を検証します。Webは今回変更しないため、作成画面のブラウザテストは後続です。
+作成のAPI E2Eは、認証・認可・入力の境界値・レスポンス・DBへの保存に加え、同時作成・削除後の番号再利用防止・失敗時のrollbackを確認します。競合テストはPostgreSQLの実際のロック待ちを確認し、メンバー削除・role変更・アーカイブと作成の保存順を検証します。
+
+## Task 更新 API
+
+`PATCH /api/projects/:projectId/tasks/:taskId`は、未アーカイブのProjectに参加するowner・memberへ許可します。title・description・status・priority・assigneeId・startDate・dueDateの7項目だけを受け取り、省略した項目は維持します。説明・担当者・日付のnullは解除を表し、タイトル・状態・優先度のnullは拒否します。本文なし・空のオブジェクト・定義外の項目は400です。
+
+日付を片方だけ変更する場合も、最新のTaskと合わせて期限が開始日以降であることを確認します。保存時には作成・メンバー削除・role変更・アーカイブと同じProject行をロックし、本人の参加資格・role・アーカイブ状態・Taskの所属・担当者を再確認します。番号・報告者・採番カウンターは変更しません。
+
+成功時は200と、詳細取得と同じ13項目の単一Taskを返します。同じ値だけを指定した場合は更新日時を維持します。認証・メール条件・viewer・Project不在・Task不在・担当者不正・日付不正・アーカイブ済みは、対応する401・400・403・404・409を返します。詳細は[UI_API.md](../../docs/UI_API.md#タスク更新-patch-apiprojectsprojectidtaskstaskid)を参照してください。
+
+`tasks.e2e-spec.ts`でHTTP入力・認証・認可・返却項目・DBへの保存・省略とnull・日付・同値更新を確認し、`tasks.repository.e2e-spec.ts`で保存失敗時のrollbackと、Project行のロック待ちの間に参加情報・アーカイブ・日付が変わる場合を確認します。ローカルでは下記の専用環境を使い、開発用DB・Authユーザーを変更しません。
 
 ## 確認コマンド
 

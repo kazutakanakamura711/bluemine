@@ -19,6 +19,19 @@ type CreateTaskData = {
   dueDate: Date | null;
 };
 
+type UpdateTaskData = {
+  projectId: string;
+  taskId: string;
+  userId: string;
+  title?: string;
+  description?: string | null;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  assigneeId?: string | null;
+  startDate?: Date | null;
+  dueDate?: Date | null;
+};
+
 @Injectable()
 export class TasksRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -163,5 +176,114 @@ export class TasksRepository {
       }
       throw error;
     }
+  }
+
+  update(data: UpdateTaskData) {
+    return this.prisma.$transaction(async (tx) => {
+      // メンバー削除・role変更・アーカイブと、同じProjectの保存順を揃える。
+      const [project] = await tx.$queryRaw<{ isArchived: boolean }[]>`
+        SELECT is_archived AS "isArchived"
+        FROM projects
+        WHERE id = ${data.projectId}
+        FOR UPDATE
+      `;
+      if (!project) {
+        return { status: 'project_not_found' as const };
+      }
+
+      // userIdは認証済みの実行者。報告者とは分け、ロック後の参加資格で判断する。
+      const member = await tx.projectMember.findUnique({
+        where: {
+          projectId_userId: {
+            projectId: data.projectId,
+            userId: data.userId,
+          },
+        },
+      });
+      if (!member) {
+        return { status: 'project_not_found' as const };
+      }
+      if (member.role === ProjectMemberRole.viewer) {
+        return { status: 'forbidden' as const };
+      }
+      if (project.isArchived) {
+        return { status: 'project_archived' as const };
+      }
+
+      const task = await tx.task.findUnique({
+        where: { id: data.taskId, projectId: data.projectId },
+        include: {
+          assignee: { select: { id: true, name: true } },
+          reporter: { select: { id: true, name: true } },
+        },
+      });
+      if (!task) {
+        return { status: 'task_not_found' as const };
+      }
+
+      // 省略は担当を維持し、nullは担当解除。User IDを指定したときだけ参加情報を確認する。
+      if (data.assigneeId !== undefined && data.assigneeId !== null) {
+        const assignee = await tx.projectMember.findUnique({
+          where: {
+            projectId_userId: {
+              projectId: data.projectId,
+              userId: data.assigneeId,
+            },
+          },
+        });
+        if (!assignee) {
+          return { status: 'assignee_not_found' as const };
+        }
+      }
+
+      // 片方だけの変更も、ロック後の最新の日付と合わせて検証する。
+      // ??ではnullも現在値に戻ってしまうため、undefinedだけを省略として扱う。
+      const startDate =
+        data.startDate !== undefined ? data.startDate : task.startDate;
+      const dueDate = data.dueDate !== undefined ? data.dueDate : task.dueDate;
+      if (startDate && dueDate && dueDate.getTime() < startDate.getTime()) {
+        return { status: 'invalid_date_range' as const };
+      }
+
+      // 今回指定された項目に、保存済みのTaskと異なる値が1つでもあるかチェック。
+      const hasChanges =
+        (data.title !== undefined && data.title !== task.title) ||
+        (data.description !== undefined &&
+          data.description !== task.description) ||
+        (data.status !== undefined && data.status !== task.status) ||
+        (data.priority !== undefined && data.priority !== task.priority) ||
+        (data.assigneeId !== undefined &&
+          data.assigneeId !== task.assigneeId) ||
+        (data.startDate !== undefined &&
+          data.startDate?.getTime() !== task.startDate?.getTime()) ||
+        (data.dueDate !== undefined &&
+          data.dueDate?.getTime() !== task.dueDate?.getTime());
+      if (!hasChanges) {
+        // 同じ値なら保存せず、updatedAtも維持する。
+        return { status: 'unchanged' as const, task };
+      }
+
+      const updatedTask = await tx.task.update({
+        where: { id: data.taskId, projectId: data.projectId },
+        // 指定された7項目だけを書き込み、番号・報告者・採番カウンターは変更しない。
+        data: {
+          ...(data.title !== undefined && { title: data.title }),
+          ...(data.description !== undefined && {
+            description: data.description,
+          }),
+          ...(data.status !== undefined && { status: data.status }),
+          ...(data.priority !== undefined && { priority: data.priority }),
+          ...(data.assigneeId !== undefined && { assigneeId: data.assigneeId }),
+          ...(data.startDate !== undefined && { startDate: data.startDate }),
+          ...(data.dueDate !== undefined && { dueDate: data.dueDate }),
+        },
+        include: {
+          assignee: { select: { id: true, name: true } },
+          reporter: { select: { id: true, name: true } },
+        },
+      });
+
+      return { status: 'updated' as const, task: updatedTask };
+    });
   }
 }

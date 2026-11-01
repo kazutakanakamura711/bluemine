@@ -1,0 +1,31 @@
+info:
+  name: update-task
+  type: http
+  seq: 18
+
+http:
+  method: PATCH
+  url: http://localhost:3001/api/projects/{{projectId}}/tasks/{{taskId}}
+  body:
+    type: json
+    data: |-
+      {
+        "status": "in_progress"
+      }
+  auth:
+    type: bearer
+    token: '{{accessToken}}'
+
+runtime:
+  variables:
+    - name: projectId
+      value: ''
+    - name: taskId
+      value: ''
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

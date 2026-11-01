@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -11,6 +12,7 @@ import { TasksService } from './tasks.service.js';
 import { type AuthenticatedRequest, AuthGuard } from '../auth/auth.guard.js';
 import { TaskResponseDto } from './dto/task-response.dto.js';
 import { CreateTaskDto } from './dto/create-task.dto.js';
+import { UpdateTaskDto } from './dto/update-task.dto.js';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -138,9 +140,55 @@ export class TaskController {
     );
     return toTaskResponse(task);
   }
+
+  @Patch(':taskId')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: '参加しているプロジェクトのタスクを更新する' })
+  @ApiParam({
+    name: 'projectId',
+    description: 'タスクが所属するプロジェクトのID',
+  })
+  @ApiParam({
+    name: 'taskId',
+    description: '更新するタスクのID',
+  })
+  @ApiOkResponse({
+    description:
+      'owner・memberが指定した項目だけを更新し、更新後のタスクを返す。同じ値なら更新日時を維持する',
+    type: TaskResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description:
+      '入力不正・更新項目なし・定義外の項目・日付の前後関係不正、または担当者が同じProjectの参加者ではない',
+  })
+  @ApiForbiddenResponse({
+    description: 'メール未設定・未確認、または本人がviewer',
+  })
+  @ApiNotFoundResponse({
+    description:
+      'プロジェクトが存在しない、参加していない、または指定したプロジェクト内にタスクが存在しない',
+  })
+  @ApiConflictResponse({
+    description: 'アーカイブ済みProject',
+  })
+  async update(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Body() dto: UpdateTaskDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<TaskResponseDto> {
+    const task = await this.tasksService.update(
+      projectId,
+      taskId,
+      dto,
+      request.user.id,
+    );
+
+    return toTaskResponse(task);
+  }
 }
 
-// 一覧・詳細・作成で、公開項目と日付の返却形式を揃える。
+// 一覧・詳細・作成・更新で、公開項目と日付の返却形式を揃える。
 function toTaskResponse(
   task: Awaited<ReturnType<TasksService['create']>>,
 ): TaskResponseDto {
