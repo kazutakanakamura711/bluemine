@@ -2,7 +2,7 @@ export default function Home() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 text-zinc-950">
       <div className="w-full max-w-2xl rounded-xl bg-white p-8 shadow-sm">
-        <p className="text-sm font-medium text-zinc-600">Redmine Next Nest</p>
+        <p className="text-sm font-medium text-zinc-600">Bluemine</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
           開発環境を準備しました
         </h1>

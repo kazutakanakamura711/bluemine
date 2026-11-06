@@ -1,28 +1,39 @@
 {
-  "name": "redmine-next-nest",
+  "name": "bluemine",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "scripts": {
-    "dev:web": "pnpm --filter @redmine-next-nest/web dev",
-    "dev:api": "pnpm --filter @redmine-next-nest/api start:dev",
+    "dev:web": "pnpm --filter @bluemine/web dev",
+    "dev:api": "pnpm --filter @bluemine/api start:dev",
+    "storybook": "pnpm --filter @bluemine/web storybook",
+    "storybook:build": "pnpm --filter @bluemine/web storybook:build",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "test:e2e": "pnpm --filter @redmine-next-nest/api test:e2e",
+    "test:e2e": "pnpm --filter @bluemine/api test:e2e",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:browser:prepare": "node e2e/start.mjs && node e2e/migrate.mjs && node e2e/build.mjs",
+    "test:browser": "playwright test --config playwright.config.mjs",
+    "typecheck:browser": "tsc --project e2e/tsconfig.json"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@prisma/adapter-pg": "7.10.0",
+    "@supabase/supabase-js": "2.117.2",
+    "@types/node": "24.13.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "supabase": "^2.118.0",
+    "typescript": "6.0.3"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs,json,css,md,yml,yaml}": "prettier --write",
-    "apps/web/**/*.{ts,tsx,js,mjs}": "pnpm --filter @redmine-next-nest/web exec eslint --fix",
-    "apps/api/**/*.ts": "pnpm --filter @redmine-next-nest/api exec oxlint --fix"
+    "apps/web/**/*.{ts,tsx,js,mjs}": "pnpm --filter @bluemine/web exec eslint --fix",
+    "apps/api/**/*.ts": "pnpm --filter @bluemine/api exec oxlint --fix"
   }
 }

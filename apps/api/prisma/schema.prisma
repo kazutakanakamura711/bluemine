@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// プロジェクト内で選べる役割を3つに限定する。
+enum ProjectMemberRole {
+  owner
+  member
+  viewer
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}
+
+enum TaskPriority {
+  low
+  normal
+  high
+}
+
+model User {
+  id        String   @id @db.Uuid //Supabase AuthのユーザーID
+  email     String   @unique // ユーザーのメールアドレス
+  name      String? // ユーザーの名前
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // このユーザーが owner になっているプロジェクト一覧。
+  ownedProjects  Project[]
+  // このユーザーのプロジェクト参加情報一覧。
+  projectMembers ProjectMember[]
+  // このユーザーが担当するタスク一覧。
+  assignedTasks  Task[]          @relation("TaskAssignee")
+  // このユーザーが報告したタスク一覧。
+  reportedTasks  Task[]          @relation("TaskReporter")
+
+  @@map("users")
+}
+
+model Project {
+  id             String   @id @default(cuid()) // プロジェクトのID
+  ownerId        String   @map("owner_id") @db.Uuid // 作成者のUser ID（User.id と同じ UUID 型）
+  name           String // プロジェクトの名前
+  key            String   @unique // プロジェクトのキー
+  description    String? // プロジェクトの説明
+  isArchived     Boolean  @default(false) @map("is_archived") // プロジェクトがアーカイブされているかどうか
+  lastTaskNumber Int      @default(0) @map("last_task_number") // 最後に採番したタスク番号。次回は1増やして使う
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // ownerId が User.id を参照し、このプロジェクトの owner を表す。
+  owner          User            @relation(fields: [ownerId], references: [id])
+  // このプロジェクトの参加者と role の一覧。
+  projectMembers ProjectMember[]
+  // このプロジェクトのタスクの一覧
+  tasks          Task[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String            @id @default(cuid()) // プロジェクトメンバーのID
+  projectId String            @map("project_id") // プロジェクトのID
+  userId    String            @map("user_id") @db.Uuid // ユーザーのID（User.id と同じ UUID 型）
+  role      ProjectMemberRole // プロジェクト内での役割(owner・member・viewer)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  // この参加情報が属するプロジェクト。
+  project Project @relation(fields: [projectId], references: [id])
+  // この参加情報のユーザー。
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId]) // 同じユーザーが同じプロジェクトに複数回参加できないようにする
+  @@map("project_members")
+}
+
+model Task {
+  id          String       @id @default(cuid()) // タスクのID
+  projectId   String       @map("project_id") // プロジェクトのID
+  assigneeId  String?      @map("assignee_id") @db.Uuid // 担当者のユーザーのID
+  reporterId  String       @map("reporter_id") @db.Uuid // 報告者（作成者）のユーザーのID
+  number      Int // プロジェクトのKEYと結合して使う番号
+  title       String // タイトル
+  description String? // 詳細説明
+  status      TaskStatus   @default(todo) // ステータス
+  priority    TaskPriority @default(normal) // 優先度
+  startDate   DateTime?    @map("start_date") @db.Date // 開始日
+  dueDate     DateTime?    @map("due_date") @db.Date // 期限
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // タスクが所属するプロジェクト
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  // タスクの担当者。Userの物理削除は参照中なら拒否する。
+  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  // タスクの報告者。Projectから脱退してもUserへの参照は保持する。
+  reporter User    @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, number])
+  @@index([projectId, createdAt, id])
+  @@map("tasks")
+}

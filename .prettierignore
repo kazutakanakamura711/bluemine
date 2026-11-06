@@ -7,3 +7,9 @@ pnpm-lock.yaml
 node_modules/
 dist/
 coverage/
+apps/api/src/generated/prisma/
+apps/web/.next-e2e/
+apps/api/dist-e2e/
+playwright-report/
+test-results/
+storybook-static/

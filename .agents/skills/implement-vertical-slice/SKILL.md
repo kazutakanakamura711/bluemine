@@ -1,6 +1,6 @@
 ---
 name: implement-vertical-slice
-description: Redmine Next Nest の機能を、必要な REST API・UI・テストの境界をまたいで実装する。環境構築や1ファイルだけの修正ではなく、完結した小さな機能に使う。
+description: Bluemine の機能を、必要な REST API・UI・テストの境界をまたいで実装する。環境構築や1ファイルだけの修正ではなく、完結した小さな機能に使う。
 ---
 
 # 垂直スライスを実装する

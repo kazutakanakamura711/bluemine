@@ -1,4 +1,6 @@
-# 機能を実装する順番
+# 開発ガイド
+
+Bluemine の機能を実装・確認する共通手順です。正式な仕様は [REQUIREMENTS.md](./REQUIREMENTS.md) を入口に確認します。
 
 ## 例: プロジェクト作成 API
 
@@ -73,7 +75,7 @@ POST /projects
 
 Husky はミスを早く見つける補助であり、CI やテストの代わりではない。hook が遅くなり過ぎないよう、全テストや build は PR 前・CI で実行する。
 
-Docker Compose、volume、`localhost` と `db` の接続先の違い、Prisma migration の切り分けは [DOCKER_NOTES.md](./DOCKER_NOTES.md) を参照する。
+Docker Compose・Supabase・Prisma の起動手順は [API README](../apps/api/README.md#開発)、ブラウザテストは [Playwright の手順](./PLAYWRIGHT_SETUP_GUIDE.md) を参照する。
 
 ## 今回はまだ導入しないもの
 

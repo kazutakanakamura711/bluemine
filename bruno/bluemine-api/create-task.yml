@@ -1,0 +1,35 @@
+info:
+  name: create-task
+  type: http
+  seq: 17
+
+http:
+  method: POST
+  url: http://localhost:3001/api/projects/{{projectId}}/tasks
+  body:
+    type: json
+    data: |-
+      {
+        "title": "ログイン画面を作る",
+        "description": "メールアドレスとパスワードでログインする",
+        "status": "todo",
+        "priority": "normal",
+        "assigneeId": null,
+        "startDate": null,
+        "dueDate": null
+      }
+  auth:
+    type: bearer
+    token: '{{accessToken}}'
+
+runtime:
+  variables:
+    - name: projectId
+      value: ''
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

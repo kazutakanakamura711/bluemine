@@ -1,0 +1,46 @@
+info:
+  name: supabase-login
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: http://127.0.0.1:54321/auth/v1/token?grant_type=password
+  headers:
+    - name: apikey
+      value: '{{supabasePublishableKey}}'
+    - name: Content-Type
+      value: application/json
+  params:
+    - name: grant_type
+      value: password
+      type: query
+  body:
+    type: json
+    data: |-
+      {
+        "email": "{{loginEmail}}",
+        "password": "{{loginPassword}}"
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  # ローカル Supabase へのログイン
+
+  Supabase Auth にメールアドレスとパスワードを送り、access token を取得します。
+  NestJS の API ではなく、ローカル Supabase の API を呼び出します。
+
+  1. ローカル Supabase の Studio で、確認済みのテストユーザーを作成します。
+  2. Local 環境の Variables に supabasePublishableKey と loginEmail、Secrets に loginPassword を設定します。
+  3. 右上で Local を選択し、このリクエストを Send します。Bearer token は不要です。
+  4. 200 OK のレスポンスにある access_token の値だけをコピーし、Local の Secrets の accessToken に保存します。
+  5. auth-me で本人の User を取得し、create-project で Project を作成できます。
+
+  400 invalid_credentials の場合は、保存したメールアドレス・パスワードが Supabase のユーザーと一致するか確認します。
+  パスワードや token の実際の値はリクエストファイルに書かず、Secrets に設定します。

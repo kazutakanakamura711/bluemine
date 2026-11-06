@@ -1,0 +1,30 @@
+info:
+  name: add-project-member
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: http://localhost:3001/api/projects/{{projectId}}/members
+  body:
+    type: json
+    data: |-
+      {
+        "email": "test@example.com",
+        "role": "member"
+      }
+  auth:
+    type: bearer
+    token: '{{accessToken}}'
+
+runtime:
+  variables:
+    - name: projectId
+      value: ''
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

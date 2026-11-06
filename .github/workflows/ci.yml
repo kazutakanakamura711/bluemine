@@ -1,0 +1,231 @@
+# GitHub Actions の画面に表示するワークフロー名。
+name: CI
+
+# どのイベントでワークフローを起動するか。
+on:
+  # develop・main 向け Pull Request の作成・更新・再オープン時に実行する。
+  pull_request:
+    branches: [develop, main]
+  # develop・main ブランチへの push 時に実行する。
+  push:
+    branches: [develop, main]
+
+# CI にはリポジトリ内容の読み取りだけを許可する。
+permissions:
+  contents: read
+
+# 同じブランチに新しい push があれば、実行中の古い CI を止める。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Prisma Client 生成時の設定読み込みと、E2E の開発用 DB との接続先比較に使う。
+# この開発用 DB は CI では作成せず、生成処理も DB には接続しない。
+env:
+  DATABASE_URL: postgresql://bluemine_test:ci-test-only@localhost:5432/bluemine?schema=public
+
+# ワークフローで実行する job の一覧。
+# needs を指定しない job は、それぞれ別の runner で並行して実行される。
+jobs:
+  # job ID。ほかの job から参照するときや、依存関係を指定するときに使う。
+  quality:
+    # GitHub Actions の画面に表示する job 名。
+    name: Quality checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # lockfile と package.json が一致しない場合は、依存関係を更新せず失敗させる。
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Prisma Client は Git 管理していない生成ファイルなので、CI 上で生成する。
+      - name: Generate Prisma Client
+        run: pnpm --filter @bluemine/api exec prisma generate
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        # Web の build に必要な公開設定。quality では Supabase へ接続しない。
+        # ビルド確認専用の値なので、デプロイ用の成果物には使用しない。
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_build_placeholder
+        run: pnpm build
+
+      # UI カタログを静的ファイルに変換できることを確認する。DB・Supabase は不要。
+      - name: Build Storybook
+        run: pnpm storybook:build
+
+  # PostgreSQL が必要な結合テストを独立して実行する job。
+  api_e2e:
+    name: API E2E
+    runs-on: ubuntu-latest
+    env:
+      TEST_DATABASE_URL: postgresql://bluemine_test:ci-test-only@localhost:5432/bluemine_test?schema=public
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: bluemine_test
+          POSTGRES_PASSWORD: ci-test-only
+          POSTGRES_DB: bluemine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bluemine_test -d bluemine_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @bluemine/api exec prisma generate
+
+      # CI でも、公開ポートを loopback に限定したネットワークで Supabase を起動する。
+      - name: Start Supabase
+        timeout-minutes: 10
+        run: |
+          docker network create \
+            --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 \
+            bluemine-ci-network
+          # 起動結果にはキーが含まれるため、CI のログへ出さず一時ファイルへ保存する。
+          if ! pnpm exec supabase start --network-id bluemine-ci-network --yes \
+            > "$RUNNER_TEMP/supabase-start.log" 2>&1; then
+            echo "::error::Supabase の起動に失敗しました。"
+            docker ps -a --filter name=supabase_ --format 'table {{.Names}}\t{{.Status}}'
+            exit 1
+          fi
+
+      # CI 上で起動した Supabase の設定を、後続のテストへ環境変数として渡す。
+      - name: Configure Supabase environment
+        run: |
+          # キーを含む JSON は画面に表示せず、所有者だけが読める一時ファイルに保存する。
+          umask 077
+          pnpm exec supabase status --output json > "$RUNNER_TEMP/supabase-status.json"
+          SUPABASE_URL="$(jq -er '.API_URL | select(type == "string" and length > 0)' "$RUNNER_TEMP/supabase-status.json")"
+          SUPABASE_PUBLISHABLE_KEY="$(jq -er '.PUBLISHABLE_KEY | select(type == "string" and length > 0)' "$RUNNER_TEMP/supabase-status.json")"
+          SUPABASE_SECRET_KEY="$(jq -er '.SECRET_KEY | select(type == "string" and length > 0)' "$RUNNER_TEMP/supabase-status.json")"
+
+          # キーを環境変数へ渡す前に、以降の CI ログでマスクするよう登録する。
+          echo "::add-mask::$SUPABASE_PUBLISHABLE_KEY"
+          echo "::add-mask::$SUPABASE_SECRET_KEY"
+
+          # GITHUB_ENV に書くと、次のステップから process.env で参照できる。
+          {
+            printf 'SUPABASE_URL=%s\n' "$SUPABASE_URL"
+            printf 'SUPABASE_PUBLISHABLE_KEY=%s\n' "$SUPABASE_PUBLISHABLE_KEY"
+            printf 'SUPABASE_SECRET_KEY=%s\n' "$SUPABASE_SECRET_KEY"
+          } >> "$GITHUB_ENV"
+
+      # 接続先を検証し、専用 DB に migration を適用してからテストする。
+      - name: Run API E2E
+        run: pnpm test:e2e
+
+      # テストが失敗した場合も、CI 用の Supabase とその一時データを片付ける。
+      - name: Stop Supabase
+        if: always()
+        timeout-minutes: 5
+        run: pnpm exec supabase stop --no-backup
+
+  # 実際のブラウザで主要導線を確認する job。API E2E とは別の runner で実行する。
+  browser_e2e:
+    name: Browser E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.9.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Linux 上で Chromium の実行に必要な OS のライブラリも追加する。
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # ローカルと同じ専用 DB・Supabase・migration・ビルドを使う。
+      # 認証キーは既存スクリプトが専用 Supabase から取得し、管理キーは fixture 内だけで使う。
+      - name: Prepare browser E2E environment
+        timeout-minutes: 15
+        run: pnpm test:browser:prepare
+
+      - name: Typecheck browser tests
+        run: pnpm typecheck:browser
+
+      # Playwright がテスト用 Web/API を起動し、テスト後に終了する。
+      - name: Run browser E2E
+        timeout-minutes: 10
+        run: pnpm test:browser
+
+      # 成否どちらでも HTML レポートを保存する。失敗時は screenshot・trace も含む。
+      # 一時的なテスト認証情報を含み得るため、対象ディレクトリと保存期間を限定する。
+      - name: Upload browser E2E report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-e2e-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # 準備・型チェック・テスト・artifact 保存の失敗時も専用環境を片付ける。
+      - name: Stop browser E2E environment
+        if: always()
+        timeout-minutes: 5
+        run: node e2e/stop.mjs

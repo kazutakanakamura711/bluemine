@@ -1,0 +1,27 @@
+info:
+  name: delete-project-member
+  type: http
+  seq: 13
+
+http:
+  method: DELETE
+  url: http://localhost:3001/api/projects/{{projectId}}/members/{{projectMemberId}}
+  auth:
+    type: bearer
+    token: '{{accessToken}}'
+
+runtime:
+  variables:
+    - name: projectId
+      value: cmutlquox0000yxd8ti7dudz3
+    - name: projecMmemberId
+      value: cmv6ptoxl000069d8issa8l76
+    - name: projectMemberId
+      value: cmutlqup10001yxd872knyab5
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,26 @@
+info:
+  name: create-project
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3001/api/projects
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Webサイト改善 2",
+        "key": "web2",
+        "description": "2件目の確認用プロジェクト"
+      }
+  auth:
+    type: bearer
+    token: '{{accessToken}}'
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

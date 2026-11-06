@@ -1,0 +1,33 @@
+info:
+  name: auth-me
+  type: http
+  seq: 9
+
+http:
+  method: GET
+  url: http://localhost:3001/api/auth/me
+  auth:
+    type: bearer
+    token: '{{accessToken}}'
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  # 認証済みユーザーの情報取得
+
+  NestJS が Supabase の access token を検証し、本人のアプリ側 User を返します。
+  User が未登録なら初回作成し、作成・更新時にメールアドレスと user_metadata.name を同期します。
+  名前は前後の空白を除き、未設定・空白・文字列以外の場合は null にします。既存の名前もこの値で更新します。
+
+  1. supabase-login で取得した access_token を Local の Secrets の accessToken に保存します。
+  2. Local を選択し、このリクエストを Send します。
+  3. 200 OK の id と email が、ログインした Supabase ユーザーと一致することを確認します。
+
+  - 200: User の id・email・name・createdAt・updatedAt を返します。
+  - 401: Bearer token がない、形式が不正、または token が無効です。
+  - 403: token は有効ですが、メールアドレスが未設定または未確認です。

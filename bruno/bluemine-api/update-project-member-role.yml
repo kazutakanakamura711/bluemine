@@ -1,0 +1,24 @@
+info:
+  name: update-project-member-role
+  type: http
+  seq: 12
+
+http:
+  method: PATCH
+  url: http://localhost:3001/api/projects/{{projectId}}/members/{{projectMemberId}}
+  body:
+    type: json
+    data: |-
+      {
+        "role": "viewer"
+      }
+  auth:
+    type: bearer
+    token: '{{accessToken}}'
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

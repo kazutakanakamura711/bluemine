@@ -1,6 +1,6 @@
 ---
 name: verify-change
-description: 完了した Redmine Next Nest の変更に対し、影響に見合う確認を選んで実行する。Docker と Prisma に影響がある場合はそれらも確認する。
+description: 完了した Bluemine の変更に対し、影響に見合う確認を選んで実行する。Docker と Prisma に影響がある場合はそれらも確認する。
 ---
 
 # 変更を検証する

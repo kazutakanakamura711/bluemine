@@ -1,0 +1,51 @@
+info:
+  name: supabase-update-name
+  type: http
+  seq: 16
+
+http:
+  method: PUT
+  url: http://127.0.0.1:54321/auth/v1/user
+  headers:
+    - name: apikey
+      value: '{{supabasePublishableKey}}'
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "data": {
+          "name": "{{displayName}}"
+        }
+      }
+  auth:
+    type: bearer
+    token: '{{accessToken}}'
+
+runtime:
+  variables:
+    - name: displayName
+      value: ''
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+docs: |-
+  # ローカル Supabase の表示名変更
+
+  ログイン済みの本人の表示名を Supabase Auth の user_metadata.name に保存します。
+  NestJS の API ではなく、ローカル Supabase の API を呼び出します。
+
+  1. supabase-login でログインし、有効な token を Local の Secrets の accessToken に保存します。
+  2. Local の Variables に supabasePublishableKey を設定します。
+  3. このリクエストの Variables の displayName を変更後の名前に設定し、Save します。
+  4. このリクエストを Send し、200 OK と user_metadata.name を確認します。
+  5. auth-me を Send すると、アプリ側 User に名前が同期されます。画面を再読み込みすると担当者・報告者の表示に反映されます。
+
+  displayName を空文字・空白だけにすると、アプリ側では名前未設定として扱います。
+  キーや token の実際の値はリクエストファイルに書かず、Variables / Secrets に設定します。

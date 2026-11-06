@@ -1,74 +1,69 @@
-# Redmine Next Nest
+# Bluemine
 
-## このプロジェクトの目的
+Bluemine は、少人数向けのプロジェクト・タスク管理アプリケーションです。
+Next.js のフロントエンドと NestJS の REST API を使い、PostgreSQL に保存します。
 
-Redmine / Jira のように、プロジェクトごとにタスクを管理できる Web アプリケーションを作る。
-
-このプロジェクトでは、機能を増やすことよりも、責務が明確で保守しやすい構成を優先する。
-
-特に次を段階的に実装する。
-
-- REST API と Controller の役割
-- Service に処理の流れを書く方法
-- Repository を通じて DB 操作を分ける理由
-- DTO による入力チェック
-- 認証・認可、テスト、DB migration の基本
-
-## 今回の設計方針
-
-採用するのは、**機能単位のレイヤードアーキテクチャ**である。
+## 構成
 
 ```text
-Controller -> Service -> Repository -> Prisma -> PostgreSQL
+apps/web  Next.js / React / TypeScript / shadcn/ui
+apps/api  NestJS / Prisma / PostgreSQL
+e2e       Playwright と専用のテスト環境
+supabase  ローカル認証の設定・メールテンプレート
 ```
 
-各機能を `projects`、`tasks`、`members` のように分け、その中で Controller / Service / Repository の役割を分ける。
+Backend は機能単位のレイヤード構成です。
 
-最初から Clean Architecture や DDD の全てのパターンは導入しない。複雑な業務ルールが実際に現れた場合にだけ、Entity、UseCase、interface による抽象化を追加する。
+```text
+Controller -> Service -> Repository -> PrismaService -> PostgreSQL
+```
 
-詳しくは次の資料を参照する。
+## 仕様と開発ルール
 
-- [REQUIREMENTS.md](./REQUIREMENTS.md): プロダクトの目的、MVP範囲、到達点
-- [ARCHITECTURE.md](./ARCHITECTURE.md): フロントエンド・バックエンドの責務分担
-- [DOMAIN_MODEL.md](./DOMAIN_MODEL.md): データの意味と業務ルール
-- [ER.md](./ER.md): 完成形のデータ関係
-- [UI_API.md](./UI_API.md): 画面と REST API の段階的な仕様
-- [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md): 1機能を実装・確認する順番
-- [DOCKER_NOTES.md](./DOCKER_NOTES.md): Docker Compose、PostgreSQL、Prisma で詰まりやすい点
+- [REQUIREMENTS.md](./REQUIREMENTS.md): 要件の入口とMVP範囲
+- [DOMAIN_MODEL.md](./DOMAIN_MODEL.md): データと業務ルール
+- [UI_API.md](./UI_API.md): 画面・URL・REST API契約
+- [ARCHITECTURE.md](./ARCHITECTURE.md): 構成と各層の責務
+- [ER.md](./ER.md): データの関係
+- [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md): 実装・確認の共通手順
+- [PULL_REQUEST_GUIDE.md](./PULL_REQUEST_GUIDE.md): PR作成・確認の手順
 
-## 想定スタック
+## 起動と確認
 
-- Frontend: Next.js / TypeScript
-- UI: Tailwind CSS / shadcn/ui
-- Backend: NestJS / TypeScript
-- API: REST / JSON
-- Database: PostgreSQL
-- ORM: Prisma
-- Authentication: Supabase Auth（導入時に設定方法を確認する）
-- Frontend test: Vitest / React Testing Library
-- Backend test: Vitest / Supertest
-- E2E test: Playwright
-- UI catalog: Storybook
+Node.js 24、pnpm 11.9.0、Docker Desktop を使用します。コマンドはリポジトリのルートで実行します。
 
-具体的な構成や依存関係は、初期化時に必要最小限から確定する。
+```bash
+pnpm install --frozen-lockfile
+```
 
-## UI・テストの使い分け
+環境変数とDB・Supabaseを [API README](../apps/api/README.md#開発) に従って準備し、別々のターミナルで起動します。
 
-| 道具 | 目的 |
+```bash
+pnpm dev:api
+pnpm dev:web
+```
+
+Web は `http://localhost:3000`、API は `http://localhost:3001/api`、Swagger は `http://localhost:3001/api/docs` です。
+
+| 対象 | 手順 |
 | --- | --- |
-| shadcn/ui | Button、Dialog、Form、Table などの再利用可能な UI 部品の土台に使う。コピーしてプロジェクト側で調整できる。 |
-| Storybook | Button や StatusBadge など、画面から切り離して確認したい UI 部品のカタログに使う。 |
-| Vitest + React Testing Library | コンポーネントの表示、入力、クリック、エラー表示などをブラウザを起動せずに確認する。 |
-| Vitest + Supertest | NestJS API の入力チェック、認可、HTTP response を確認する。 |
-| Playwright | ログインからプロジェクト作成、タスク作成までのような、ブラウザ全体を通す重要な操作を確認する。 |
+| API・DB・Supabase・API E2E | [API README](../apps/api/README.md) |
+| Web・環境変数 | [Web README](../apps/web/README.md) |
+| APIの手動確認 | [Bruno README](../bruno/README.md) |
+| ブラウザE2E | [Playwright](./PLAYWRIGHT_SETUP_GUIDE.md) |
+| UIカタログ | [Storybook](./STORYBOOK_SETUP_GUIDE.md) |
 
-テストを目的なく増やさない。小さな UI の見た目確認は Storybook、UI と API の操作は Vitest、ユーザーの主要導線は Playwright と役割を分ける。
+```bash
+pnpm test
+pnpm lint
+pnpm typecheck
+pnpm format:check
+pnpm build
+```
 
-## 最初の MVP
+## 文書の管理
 
-1. ヘルスチェック API
-2. プロジェクトの作成・一覧・詳細・更新・削除
-3. プロジェクトに属するタスクの CRUD
-4. ログインと、プロジェクト単位の閲覧・編集権限
+正式仕様・アーキテクチャ・開発ルール・共有する実行手順をGitで管理します。
+個人向けの学習メモ、作業履歴、ToDo、詰まり対応、調査レポートは `docs/local/` に保存し、Gitの対象から外します。
 
-コメント、変更履歴、親子タスク、通知などは、基本 CRUD を理解・完成させた後に追加する。
+アプリの表示名は `Bluemine`、package名は `bluemine` / `@bluemine/*` です。DB・Docker・Supabaseの内部識別名とBrunoのディレクトリ名も `bluemine` をもとに揃えています。開発用・テスト用の環境は、それぞれ区別できる名前を使います。

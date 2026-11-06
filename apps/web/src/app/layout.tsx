@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { Toaster } from '@/components/ui/toast';
 import './globals.css';
 
 const geistSans = Geist({
@@ -14,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Redmine Next Nest',
+  title: 'Bluemine',
   description: '小規模チーム向けのプロジェクト・タスク管理アプリ',
 };
 
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       lang="ja"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

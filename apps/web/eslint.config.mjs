@@ -9,8 +9,10 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     '.next/**',
+    '.next-e2e/**',
     'out/**',
     'build/**',
+    'storybook-static/**',
     'next-env.d.ts',
   ]),
 ]);

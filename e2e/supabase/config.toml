@@ -1,0 +1,52 @@
+# 開発用とは別のSupabaseとして管理する
+project_id = "bluemine-browser-e2e"
+
+[api]
+enabled = true
+port = 55321
+
+# Supabaseが認証情報などを保存するDB
+[db]
+port = 55322
+shadow_port = 55320
+major_version = 17
+
+[db.seed]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:3100"
+additional_redirect_urls = ["http://localhost:3100/**"]
+enable_signup = true
+
+# 開発用と同じく、メール確認を有効にする
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+max_frequency = "1s"
+
+[auth.email.template.confirmation]
+subject = "メールアドレスの確認"
+content_path = "./supabase/templates/confirmation.html"
+
+# テスト用メールの受信サービス
+[local_smtp]
+enabled = true
+port = 55324
+
+# 今回の認証テストで使わないサービス
+[realtime]
+enabled = false
+
+[studio]
+enabled = false
+
+[storage]
+enabled = false
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false

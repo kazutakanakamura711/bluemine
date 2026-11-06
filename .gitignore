@@ -6,6 +6,14 @@ coverage/
 .env
 .env.*
 !.env.example
+bruno/bluemine-api/environments/Local.yml
 *.tsbuildinfo
 playwright-report/
 test-results/
+storybook-static/
+debug-storybook.log
+apps/web/.next-e2e/
+apps/api/dist-e2e/
+
+# 個人向けの学習・作業・調査メモはローカルで保持する。
+/docs/local/
