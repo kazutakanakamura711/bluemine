@@ -26,7 +26,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
 
           <p className="text-sm font-semibold tracking-tight text-slate-700">
-            Redmine Next Nest
+            Bluemine
           </p>
           <h1 className="mt-2 text-xl font-bold text-slate-900">ログイン</h1>
           <p className="mt-1.5 text-xs text-slate-500">

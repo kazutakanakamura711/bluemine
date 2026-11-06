@@ -22,8 +22,8 @@ async function bootstrap() {
   );
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Redmine Next Nest API')
-    .setDescription('Redmine Next Nest の REST API 仕様')
+    .setTitle('Bluemine API')
+    .setDescription('Bluemine の REST API 仕様')
     .setVersion('1.0')
     .addTag('Health')
     .addTag('Projects')

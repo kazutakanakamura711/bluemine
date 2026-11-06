@@ -12,7 +12,7 @@ export default function RegisterPage() {
             <Clipboard aria-hidden="true" className="size-6" />
           </div>
 
-          <h1 className="text-xl font-bold text-slate-900">Redmine Nest</h1>
+          <h1 className="text-xl font-bold text-slate-900">Bluemine</h1>
           <p className="mt-1 text-sm text-slate-500">新規アカウント登録</p>
         </header>
 

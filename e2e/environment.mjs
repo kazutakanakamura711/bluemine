@@ -8,12 +8,12 @@ export const browserE2E = {
   // アプリケーション用DB
   composeFile: 'e2e/docker-compose.yml',
   databaseUrl:
-    'postgresql://redmine_browser_test:browser-test-only@127.0.0.1:5434/redmine_next_nest_browser_test?schema=public',
+    'postgresql://bluemine_browser_test:browser-test-only@127.0.0.1:5434/bluemine_browser_test?schema=public',
 
   // 認証・メール確認用のSupabase
   supabaseWorkdir: 'e2e',
-  supabaseProjectId: 'redmine-next-nest-browser-e2e',
-  supabaseNetwork: 'redmine-browser-e2e-network',
+  supabaseProjectId: 'bluemine-browser-e2e',
+  supabaseNetwork: 'bluemine-browser-e2e-network',
   supabaseUrl: 'http://127.0.0.1:55321',
   mailUrl: 'http://127.0.0.1:55324',
 
@@ -42,12 +42,12 @@ export function validateBrowserE2EEnvironment(environment = browserE2E) {
     !['postgres:', 'postgresql:'].includes(databaseUrl.protocol) ||
     databaseUrl.hostname !== '127.0.0.1' ||
     databaseUrl.port !== '5434' ||
-    databaseUrl.pathname !== '/redmine_next_nest_browser_test' ||
+    databaseUrl.pathname !== '/bluemine_browser_test' ||
     databaseUrl.search !== '?schema=public' ||
     databaseUrl.hash !== ''
   ) {
     throw new Error(
-      'ブラウザE2EのDBは 127.0.0.1:5434 の redmine_next_nest_browser_test（schema=public）に限定しています。',
+      'ブラウザE2EのDBは 127.0.0.1:5434 の bluemine_browser_test（schema=public）に限定しています。',
     );
   }
 
@@ -77,7 +77,7 @@ function getBrowserE2ESupabaseStatus() {
 
   if (
     environment.supabaseWorkdir !== 'e2e' ||
-    environment.supabaseProjectId !== 'redmine-next-nest-browser-e2e' ||
+    environment.supabaseProjectId !== 'bluemine-browser-e2e' ||
     environment.webUrl !== 'http://localhost:3100' ||
     environment.apiUrl !== 'http://localhost:3101'
   ) {
@@ -152,7 +152,7 @@ export function getBrowserE2EAppEnvironments() {
       NEXT_PUBLIC_API_BASE_URL: `${environment.apiUrl}/api`,
       NEXT_PUBLIC_SUPABASE_URL: environment.supabaseUrl,
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publishableKey,
-      REDMINE_BROWSER_E2E: '1',
+      BLUEMINE_BROWSER_E2E: '1',
     },
   };
 }

@@ -5,13 +5,13 @@ import {
 } from './environment.mjs';
 
 const environment = validateBrowserE2EEnvironment();
-const composeProjectName = 'redmine-next-nest-browser-e2e';
+const composeProjectName = 'bluemine-browser-e2e';
 
 // 停止対象を指定する設定も、専用環境のものか確認する
 if (
   environment.composeFile !== 'e2e/docker-compose.yml' ||
   environment.supabaseWorkdir !== 'e2e' ||
-  environment.supabaseProjectId !== 'redmine-next-nest-browser-e2e'
+  environment.supabaseProjectId !== 'bluemine-browser-e2e'
 ) {
   throw new Error('停止対象はブラウザE2E専用の設定に限定しています。');
 }

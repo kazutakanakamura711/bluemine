@@ -27,7 +27,7 @@ export function ProjectsSidebar({
         <div className="flex size-6 items-center justify-center rounded-md bg-indigo-600 text-white">
           <ClipboardList aria-hidden="true" className="size-4" />
         </div>
-        <p className="text-sm font-semibold tracking-tight">Redmine Nest</p>
+        <p className="text-sm font-semibold tracking-tight">Bluemine</p>
       </div>
 
       <nav aria-label="メインナビゲーション" className="flex-1 px-2 py-3">

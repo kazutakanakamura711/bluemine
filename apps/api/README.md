@@ -10,24 +10,28 @@ NestJS による REST API です。
 ルートの `.env` に [.env.example](../../.env.example) を参考に接続情報を設定します。
 `.env` がない場合は `.env.example` をコピーして作成し、既存の `.env` は上書きしないでください。
 
+名称変更前からローカル環境を使っている場合は、旧設定でコンテナを停止してから新しい設定へ切り替えてください。
+Compose名・Supabaseの `project_id` ・DB名の変更によって保存先が切り替わり、既存データは自動移行されません。
+必要なデータをバックアップしたうえで、`.env` のDB接続情報とSupabase起動後のキーを更新します。
+
 ### ローカル Supabase Auth
 
 設定は [supabase/config.toml](../../supabase/config.toml) で管理しています。
 このリポジトリでは初期化済みなので、`supabase init` を再実行する必要はありません。
 
 初回のみ、公開ポートの既定の IPv4 アドレスを loopback にする Docker network を作成します。
-`redmine-local-network` を作成済みの場合は、このコマンドを省略してください。
+`bluemine-local-network` を作成済みの場合は、このコマンドを省略してください。
 
 ```bash
 docker network create \
   --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 \
-  redmine-local-network
+  bluemine-local-network
 ```
 
 Supabase を起動し、接続先とキーを確認します。
 
 ```bash
-pnpm exec supabase start --network-id redmine-local-network
+pnpm exec supabase start --network-id bluemine-local-network
 pnpm exec supabase status
 ```
 
@@ -67,8 +71,8 @@ pnpm exec supabase stop
 
 ```bash
 docker compose up -d db
-pnpm --filter @redmine-next-nest/api exec prisma migrate dev
-pnpm --filter @redmine-next-nest/api exec prisma generate
+pnpm --filter @bluemine/api exec prisma migrate dev
+pnpm --filter @bluemine/api exec prisma generate
 pnpm dev:api
 ```
 
@@ -331,8 +335,8 @@ Prisma StudioでTaskだけを作成しても`Project.lastTaskNumber`は増えま
 ## 確認コマンド
 
 ```bash
-pnpm --filter @redmine-next-nest/api typecheck
-pnpm --filter @redmine-next-nest/api lint
+pnpm --filter @bluemine/api typecheck
+pnpm --filter @bluemine/api lint
 ```
 
 ### API E2E
@@ -352,7 +356,7 @@ pnpm test:e2e
 Supertest を実行します。`TEST_DATABASE_URL` が未設定、開発用 DB と同じ、または
 DB 名が `_test` で終わらない場合は DB 操作前に停止します。
 
-Auth E2E は実際のローカル Supabase Auth と専用テスト DB に接続し、12件で次を確認します。
+Auth E2E は実際のローカル Supabase Auth と専用テスト DB に接続し、次を確認します。
 
 - token なしで `/api/auth/me` を呼ぶと `401` になる。
 - 無効な token を送ると `401` になる。
@@ -433,11 +437,9 @@ HTTP の `localhost`、`127.0.0.1`、`[::1]` に限定しています。
 通常の認証は実際のSupabaseを使います。メール未設定・未確認の2件だけは、実tokenの検証結果のメール状態を差し替えてAPI側の拒否を確認します。
 後片付けは今回作成したIDで限定し、Task → ProjectMember → Project → Userをtransactionで削除します。DB側で失敗してもAuthユーザーの削除とアプリの終了を試みます。
 
-2026-10-27にTaskの25件と、既存を含むAPI E2E全245件が成功しました。専用DB・Supabaseにおける実行前後のUser・Project・ProjectMember・Task・Authユーザー・Authセッションはすべて0件で、確認後は専用環境を終了しています。
-
 #### Task 詳細の API E2E
 
-[tasks.e2e-spec.ts](./test/tasks.e2e-spec.ts) の詳細用 `describe()` に15件を追加し、一覧25件と合わせて40件です。既存のfixtureと後片付けを共有します。
+[tasks.e2e-spec.ts](./test/tasks.e2e-spec.ts) の詳細用 `describe()` で確認します。一覧とfixture・後片付けを共有します。
 
 - tokenなし・形式不正・無効なtokenの401、メール未設定・未確認の403。
 - owner・member・viewer とアーカイブ状態の6通りでの200と、返却する10項目・未設定の `null`・statusとpriorityの初期値。
@@ -449,21 +451,16 @@ HTTP の `localhost`、`127.0.0.1`、`[::1]` に限定しています。
 
 通常の認証は実際の専用Supabaseを使います。メール未設定・未確認の2件は、一覧と同じく実tokenの検証結果のメール状態だけを差し替えます。
 
-2026-10-29の最終確認では、専用DB・Supabaseで `pnpm test:e2e` の全260件・4ファイルが成功しました。Taskは一覧25件・詳細15件の計40件です。
-実行前後のUser・Project・ProjectMember・Task・Authユーザーはすべて0件で、確認後は専用環境を終了しています。
-APIの単体テスト16件・lint・typecheck・buildも成功しました。
-ユーザーはSwaggerで、参加Projectの実在するTaskの200、Task不在の404、Project不在の404、tokenなしの401を手動確認しています。
-
 #### 専用環境でのローカル実行
 
-上記の確認では、既存のブラウザE2E用DB（5434 / `redmine_next_nest_browser_test`）と専用Supabase（55321）を使いました。
-Web/APIの開発サーバーやブラウザ用buildは不要です。同じ専用環境を使うPlaywrightとは同時に実行せず、VS CodeがWeb/APIを保持している場合は [Playwright手順書](../../docs/PLAYWRIGHT_SETUP_GUIDE.md) の終了手順に従ってください。
+専用App DB（5434 / `bluemine_browser_test`）と専用Supabase（55321）を使います。
+API E2EにはWeb/APIの開発サーバーやブラウザ用buildは不要です。同じ専用環境を使うPlaywrightとは同時に実行しないでください。
 
 Docker Desktopを起動し、ルートで専用環境を準備します。
 
 ```bash
 node e2e/start.mjs
-pnpm --filter @redmine-next-nest/api exec prisma generate --config prisma7.config.ts
+pnpm --filter @bluemine/api exec prisma generate --config prisma7.config.ts
 ```
 
 次に、専用環境のURLとキーを既存helperから取得して、API E2Eの子プロセスだけに渡します。管理キーを表示・保存せず、`.env`は書き換えません。

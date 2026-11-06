@@ -33,7 +33,7 @@ export class ProjectResponseDto {
     // Swagger 用に文字列であることを明示する。
     type: String,
     description: 'プロジェクトの概要・目的',
-    example: 'Redmine Next Nest の開発プロジェクト',
+    example: 'Bluemine の開発プロジェクト',
     nullable: true,
   })
   description: string | null;

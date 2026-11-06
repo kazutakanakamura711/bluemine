@@ -86,7 +86,7 @@ export function getTestDatabaseUrl() {
   // 開発用 URL を比較に使い続けます。これにより、setupFiles が複数回呼ばれても
   // 「テスト用 DB と開発用 DB が同じか」を正しく確認できます。
   const developmentDatabaseUrl =
-    process.env.REDMINE_E2E_DEVELOPMENT_DATABASE_URL ??
+    process.env.BLUEMINE_E2E_DEVELOPMENT_DATABASE_URL ??
     process.env.DATABASE_URL;
 
   // テスト用 DB の URL があり、開発用 DB と別の接続先であることを確認します。
@@ -97,7 +97,7 @@ export function getTestDatabaseUrl() {
 
   // 次回以降の呼び出しでも、最初に確認した開発用 URL を使えるよう保存します。
   // 環境変数には undefined を設定できないため、値がない場合は空文字にします。
-  process.env.REDMINE_E2E_DEVELOPMENT_DATABASE_URL =
+  process.env.BLUEMINE_E2E_DEVELOPMENT_DATABASE_URL =
     developmentDatabaseUrl ?? '';
 
   // 検証済みの URL を、呼び出し元（E2E 実行処理）に返します。

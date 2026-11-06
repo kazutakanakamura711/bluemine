@@ -1,25 +1,25 @@
 # Bruno でのローカル認証確認
 
-Bruno で [redmine-next-nest-api](./redmine-next-nest-api/) をコレクションとして開きます。
+Bruno で [Bluemine-api](./bluemine-api/) をコレクションとして開きます。
 リクエストは OpenCollection の YAML 形式で保存しています。
 
-| リクエスト                                                                           | 呼び出す API                                               | 用途                                       |
-| ------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------ |
-| [supabase-login](./redmine-next-nest-api/supabase-login.yml)                         | Supabase: `POST /auth/v1/token?grant_type=password`        | ログインして access token を取得           |
-| [auth-me](./redmine-next-nest-api/auth-me.yml)                                       | NestJS: `GET /api/auth/me`                                 | 本人のアプリ側 User を取得・初回作成       |
-| [create-project](./redmine-next-nest-api/create-project.yml)                         | NestJS: `POST /api/projects`                               | Project と作成者の owner membership を作成 |
-| [get-projects](./redmine-next-nest-api/get-projects.yml)                             | NestJS: `GET /api/projects`                                | Project 一覧を取得                         |
-| [get-project](./redmine-next-nest-api/get-project.yml)                               | NestJS: `GET /api/projects/:projectId`                     | Project 詳細を取得                         |
-| [update-project](./redmine-next-nest-api/update-project.yml)                         | NestJS: `PATCH /api/projects/:projectId`                   | Project 名・説明を更新                     |
-| [archive-project](./redmine-next-nest-api/archive-project.yml)                       | NestJS: `POST /api/projects/:projectId/archive`            | Project をアーカイブ                       |
-| [unarchive-project](./redmine-next-nest-api/unarchive-project.yml)                   | NestJS: `POST /api/projects/:projectId/unarchive`          | Project のアーカイブを解除                 |
-| [get-project-members](./redmine-next-nest-api/get-project-members.yml)               | NestJS: `GET /api/projects/:projectId/members`             | 参加者がメンバー一覧を取得                 |
-| [add-project-member](./redmine-next-nest-api/add-project-member.yml)                 | NestJS: `POST /api/projects/:projectId/members`            | owner が登録済み User を追加               |
-| [update-project-member-role](./redmine-next-nest-api/update-project-member-role.yml) | NestJS: `PATCH /api/projects/:projectId/members/:memberId` | owner がメンバーの role を変更             |
-| [get-tasks](./redmine-next-nest-api/get-tasks.yml)                                   | NestJS: `GET /api/projects/:projectId/tasks`               | 参加者がタスク一覧を取得                   |
-| [create-task](./redmine-next-nest-api/create-task.yml)                               | NestJS: `POST /api/projects/:projectId/tasks`              | owner・memberがタスクを作成                |
-| [update-task](./redmine-next-nest-api/update-task.yml)                               | NestJS: `PATCH /api/projects/:projectId/tasks/:taskId`     | owner・memberがタスクを部分更新            |
-| [supabase-update-password](./redmine-next-nest-api/supabase-update-password.yml)     | Supabase: `PUT /auth/v1/user`                              | ログインユーザーのパスワードを変更         |
+| リクエスト                                                                  | 呼び出す API                                               | 用途                                       |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------ |
+| [supabase-login](./bluemine-api/supabase-login.yml)                         | Supabase: `POST /auth/v1/token?grant_type=password`        | ログインして access token を取得           |
+| [auth-me](./bluemine-api/auth-me.yml)                                       | NestJS: `GET /api/auth/me`                                 | 本人のアプリ側 User を取得・初回作成       |
+| [create-project](./bluemine-api/create-project.yml)                         | NestJS: `POST /api/projects`                               | Project と作成者の owner membership を作成 |
+| [get-projects](./bluemine-api/get-projects.yml)                             | NestJS: `GET /api/projects`                                | Project 一覧を取得                         |
+| [get-project](./bluemine-api/get-project.yml)                               | NestJS: `GET /api/projects/:projectId`                     | Project 詳細を取得                         |
+| [update-project](./bluemine-api/update-project.yml)                         | NestJS: `PATCH /api/projects/:projectId`                   | Project 名・説明を更新                     |
+| [archive-project](./bluemine-api/archive-project.yml)                       | NestJS: `POST /api/projects/:projectId/archive`            | Project をアーカイブ                       |
+| [unarchive-project](./bluemine-api/unarchive-project.yml)                   | NestJS: `POST /api/projects/:projectId/unarchive`          | Project のアーカイブを解除                 |
+| [get-project-members](./bluemine-api/get-project-members.yml)               | NestJS: `GET /api/projects/:projectId/members`             | 参加者がメンバー一覧を取得                 |
+| [add-project-member](./bluemine-api/add-project-member.yml)                 | NestJS: `POST /api/projects/:projectId/members`            | owner が登録済み User を追加               |
+| [update-project-member-role](./bluemine-api/update-project-member-role.yml) | NestJS: `PATCH /api/projects/:projectId/members/:memberId` | owner がメンバーの role を変更             |
+| [get-tasks](./bluemine-api/get-tasks.yml)                                   | NestJS: `GET /api/projects/:projectId/tasks`               | 参加者がタスク一覧を取得                   |
+| [create-task](./bluemine-api/create-task.yml)                               | NestJS: `POST /api/projects/:projectId/tasks`              | owner・memberがタスクを作成                |
+| [update-task](./bluemine-api/update-task.yml)                               | NestJS: `PATCH /api/projects/:projectId/tasks/:taskId`     | owner・memberがタスクを部分更新            |
+| [supabase-update-password](./bluemine-api/supabase-update-password.yml)     | Supabase: `PUT /auth/v1/user`                              | ログインユーザーのパスワードを変更         |
 
 NestJS は `http://localhost:3001`、ローカル Supabase は `http://127.0.0.1:54321` で動きます。
 Supabase のリクエストは外部サービスの操作なので、NestJS の Swagger には含めません。
@@ -30,7 +30,7 @@ Docker network、アプリ用 DB、API の起動方法は [API README](../apps/a
 以下のコマンドはリポジトリのルートで実行します。
 
 ```bash
-pnpm exec supabase start --network-id redmine-local-network
+pnpm exec supabase start --network-id bluemine-local-network
 pnpm exec supabase status
 ```
 
@@ -245,7 +245,7 @@ Bruno の `loginPassword` を変えるだけでは、Supabase 側のパスワー
 
 ## タスクを作成する
 
-[create-task](./redmine-next-nest-api/create-task.yml)を開き、`projectId`に対象ProjectのID、Secretsの`accessToken`にowner・member本人のtokenを設定します。
+[create-task](./bluemine-api/create-task.yml)を開き、`projectId`に対象ProjectのID、Secretsの`accessToken`にowner・member本人のtokenを設定します。
 Bodyはtitleだけでも送信できます。担当者を指定する場合は`assigneeId`を、メンバー一覧の`userId`へ置き換えます（参加情報の`id`とは異なります）。viewerも担当者として指定できます。
 
 成功時は201で、採番した`number`と本人の`reporter`を含むTaskが返ります。続けて一覧・詳細で保存結果を確認できます。`number`・`reporterId`は送信しません。
@@ -254,7 +254,7 @@ Bodyはtitleだけでも送信できます。担当者を指定する場合は`a
 
 ## タスクを更新する
 
-[update-task](./redmine-next-nest-api/update-task.yml)を開き、リクエストのVariablesに対象の`projectId`と`taskId`を設定します。`taskId`には一覧・詳細の`id`を使い、表示用の番号は使いません。LocalのSecretsの`accessToken`には、対象Projectのowner・member本人のtokenを設定します。
+[update-task](./bluemine-api/update-task.yml)を開き、リクエストのVariablesに対象の`projectId`と`taskId`を設定します。`taskId`には一覧・詳細の`id`を使い、表示用の番号は使いません。LocalのSecretsの`accessToken`には、対象Projectのowner・member本人のtokenを設定します。
 
 初期のBodyは`{"status":"in_progress"}`です。省略した項目は現在値を維持します。タイトル・説明・優先度・担当者・日付も更新する場合は、変更したい項目だけをJSONへ追加します。担当者にはメンバー一覧の`userId`、日付には`YYYY-MM-DD`を指定します。
 説明・担当者・日付を`null`にすると、その項目を解除します。タイトル・状態・優先度の`null`と、空の本文`{}`は400になります。番号・報告者は送信しません。

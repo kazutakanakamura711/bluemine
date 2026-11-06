@@ -95,7 +95,7 @@ describe('AppHeader', () => {
 
     await user.click(trigger);
 
-    const menu = await screen.findByRole('dialog', { name: 'Redmine Nest' });
+    const menu = await screen.findByRole('dialog', { name: 'Bluemine' });
     expect(menu).toHaveAccessibleDescription(
       'プロジェクト画面に移動するメニューです。',
     );
@@ -119,7 +119,7 @@ describe('AppHeader', () => {
     await user.tab();
     expect(trigger).toHaveFocus();
     await user.keyboard('{Enter}');
-    await screen.findByRole('dialog', { name: 'Redmine Nest' });
+    await screen.findByRole('dialog', { name: 'Bluemine' });
     await user.keyboard('{Escape}');
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -130,7 +130,7 @@ describe('AppHeader', () => {
     const user = userEvent.setup();
     render(<AppHeader {...headerProps} />);
     await user.click(screen.getByRole('button', { name: 'メニューを開く' }));
-    await screen.findByRole('dialog', { name: 'Redmine Nest' });
+    await screen.findByRole('dialog', { name: 'Bluemine' });
 
     const overlay = document.querySelector<HTMLElement>(
       '[data-slot="sheet-overlay"]',
@@ -145,7 +145,7 @@ describe('AppHeader', () => {
     const user = userEvent.setup();
     render(<AppHeader {...headerProps} />);
     await user.click(screen.getByRole('button', { name: 'メニューを開く' }));
-    await screen.findByRole('dialog', { name: 'Redmine Nest' });
+    await screen.findByRole('dialog', { name: 'Bluemine' });
     expect(addEventListener).toHaveBeenCalledWith(
       'change',
       expect.any(Function),

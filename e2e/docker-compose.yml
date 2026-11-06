@@ -1,12 +1,12 @@
-name: redmine-next-nest-browser-e2e
+name: bluemine-browser-e2e
 
 services:
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: redmine_browser_test
+      POSTGRES_USER: bluemine_browser_test
       POSTGRES_PASSWORD: browser-test-only
-      POSTGRES_DB: redmine_next_nest_browser_test
+      POSTGRES_DB: bluemine_browser_test
     ports:
       - '127.0.0.1:5434:5432'
     tmpfs:
