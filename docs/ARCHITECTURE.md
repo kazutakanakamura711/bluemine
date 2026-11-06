@@ -89,7 +89,7 @@ token はサーバーから表示用の Client Component に渡さない。
 通常表示と fallback の両方で Tailwind CSS の `lg`（64rem / 通常1024px）を境界に表示を切り替える。
 `lg` 以上はサイドバー、`lg` 未満は高さ48pxのヘッダーを表示し、fallback も同じ領域を確保する。
 
-Client Component の `AppHeader` は、左にハンバーガーメニュー、中央にロゴと `Redmine Nest`、右に名前の先頭文字のアイコンを表示する。
+Client Component の `AppHeader` は、左にハンバーガーメニュー、中央にロゴと `Bluemine`、右に名前の先頭文字のアイコンを表示する。
 右のアイコンには操作を持たせず、ハンバーガーメニューから shadcn/ui の Sheet を開く。
 Sheet はプロジェクト一覧・詳細へのリンクを表示し、現在の項目を青色にして `aria-current="page"` を付ける。
 リンク選択時は Sheet を閉じ、リストだけをスクロール可能にして `UserMenu` を最下部に置く。

@@ -22,7 +22,7 @@ function run(args, environment) {
 run(
   [
     '--filter',
-    '@redmine-next-nest/api',
+    '@bluemine/api',
     'exec',
     'prisma',
     'generate',
@@ -36,7 +36,7 @@ run(
 run(
   [
     '--filter',
-    '@redmine-next-nest/api',
+    '@bluemine/api',
     'exec',
     'nest',
     'build',
@@ -47,6 +47,6 @@ run(
 );
 
 // 専用の環境変数でWebをビルドする
-run(['--filter', '@redmine-next-nest/web', 'build'], web);
+run(['--filter', '@bluemine/web', 'build'], web);
 
 console.log('ブラウザE2E用のビルドが完了しました。');

@@ -5,13 +5,13 @@ import {
 } from './environment.mjs';
 
 const environment = validateBrowserE2EEnvironment();
-const composeProjectName = 'redmine-next-nest-browser-e2e';
+const composeProjectName = 'bluemine-browser-e2e';
 
 if (
   environment.composeFile !== 'e2e/docker-compose.yml' ||
   environment.supabaseWorkdir !== 'e2e' ||
-  environment.supabaseProjectId !== 'redmine-next-nest-browser-e2e' ||
-  environment.supabaseNetwork !== 'redmine-browser-e2e-network'
+  environment.supabaseProjectId !== 'bluemine-browser-e2e' ||
+  environment.supabaseNetwork !== 'bluemine-browser-e2e-network'
 ) {
   throw new Error('起動対象はブラウザE2E専用の設定に限定しています。');
 }

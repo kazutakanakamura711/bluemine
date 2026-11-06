@@ -1,12 +1,13 @@
+name: bluemine
 services:
   # 初期は PostgreSQL だけを container で動かす。
   # Next.js / NestJS は host 側の pnpm dev で起動する。
   db:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-redmine}
+      POSTGRES_USER: ${POSTGRES_USER:-bluemine}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-for-local-development}
-      POSTGRES_DB: ${POSTGRES_DB:-redmine_next_nest}
+      POSTGRES_DB: ${POSTGRES_DB:-bluemine}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
@@ -23,9 +24,9 @@ services:
     profiles: ['test']
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_TEST_USER:-redmine_test}
+      POSTGRES_USER: ${POSTGRES_TEST_USER:-bluemine_test}
       POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:-change-me-for-local-test}
-      POSTGRES_DB: ${POSTGRES_TEST_DB:-redmine_next_nest_test}
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-bluemine_test}
     ports:
       - '${POSTGRES_TEST_PORT:-5433}:5432'
     volumes:

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { validateTestDatabaseUrl } from './test-database.mjs';
 
 const developmentUrl =
-  'postgresql://dev:dev@localhost:5432/redmine_next_nest?schema=public';
+  'postgresql://dev:dev@localhost:5432/bluemine?schema=public';
 const testUrl =
-  'postgresql://test:test@localhost:5433/redmine_next_nest_test?schema=public';
+  'postgresql://test:test@localhost:5433/bluemine_test?schema=public';
 
 describe('E2E 用 DB の接続先', () => {
   it('専用 DB の URL を受け付ける', () => {
@@ -19,9 +19,9 @@ describe('E2E 用 DB の接続先', () => {
 
   it('開発 DB と同じ接続先は表記やユーザーが異なっても停止する', () => {
     const development =
-      'postgresql://dev:dev@localhost:5432/redmine_next_nest_test?schema=public';
+      'postgresql://dev:dev@localhost:5432/bluemine_test?schema=public';
     const sameDatabase =
-      'postgres://other:other@127.0.0.1/redmine_next_nest_test?schema=other';
+      'postgres://other:other@127.0.0.1/bluemine_test?schema=other';
 
     expect(() => validateTestDatabaseUrl(sameDatabase, development)).toThrow(
       '開発用 DATABASE_URL と同じ DB',

@@ -22,7 +22,7 @@ concurrency:
 # Prisma Client 生成時の設定読み込みと、E2E の開発用 DB との接続先比較に使う。
 # この開発用 DB は CI では作成せず、生成処理も DB には接続しない。
 env:
-  DATABASE_URL: postgresql://redmine_test:ci-test-only@localhost:5432/redmine_next_nest?schema=public
+  DATABASE_URL: postgresql://bluemine_test:ci-test-only@localhost:5432/bluemine?schema=public
 
 # ワークフローで実行する job の一覧。
 # needs を指定しない job は、それぞれ別の runner で並行して実行される。
@@ -54,7 +54,7 @@ jobs:
 
       # Prisma Client は Git 管理していない生成ファイルなので、CI 上で生成する。
       - name: Generate Prisma Client
-        run: pnpm --filter @redmine-next-nest/api exec prisma generate
+        run: pnpm --filter @bluemine/api exec prisma generate
 
       - name: Check formatting
         run: pnpm format:check
@@ -85,19 +85,19 @@ jobs:
     name: API E2E
     runs-on: ubuntu-latest
     env:
-      TEST_DATABASE_URL: postgresql://redmine_test:ci-test-only@localhost:5432/redmine_next_nest_test?schema=public
+      TEST_DATABASE_URL: postgresql://bluemine_test:ci-test-only@localhost:5432/bluemine_test?schema=public
 
     services:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: redmine_test
+          POSTGRES_USER: bluemine_test
           POSTGRES_PASSWORD: ci-test-only
-          POSTGRES_DB: redmine_next_nest_test
+          POSTGRES_DB: bluemine_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U redmine_test -d redmine_next_nest_test"
+          --health-cmd "pg_isready -U bluemine_test -d bluemine_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
@@ -121,7 +121,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Generate Prisma Client
-        run: pnpm --filter @redmine-next-nest/api exec prisma generate
+        run: pnpm --filter @bluemine/api exec prisma generate
 
       # CI でも、公開ポートを loopback に限定したネットワークで Supabase を起動する。
       - name: Start Supabase
@@ -129,9 +129,9 @@ jobs:
         run: |
           docker network create \
             --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 \
-            redmine-ci-network
+            bluemine-ci-network
           # 起動結果にはキーが含まれるため、CI のログへ出さず一時ファイルへ保存する。
-          if ! pnpm exec supabase start --network-id redmine-ci-network --yes \
+          if ! pnpm exec supabase start --network-id bluemine-ci-network --yes \
             > "$RUNNER_TEMP/supabase-start.log" 2>&1; then
             echo "::error::Supabase の起動に失敗しました。"
             docker ps -a --filter name=supabase_ --format 'table {{.Names}}\t{{.Status}}'

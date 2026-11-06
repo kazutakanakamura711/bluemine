@@ -34,7 +34,7 @@ pnpm dev:web
 
 再利用UIの状態は、リポジトリのルートで `pnpm storybook` を実行し、
 `http://127.0.0.1:6006` で確認します。終了は `Ctrl+C`、静的buildは `pnpm storybook:build` です。
-現在はButton、Input＋Label、Badge、AlertとAlertDialogの表示例を用意しています。設定とstoryの読み方、CIでのbuild確認は
+汎用UI・タスク一覧・作成／編集フォームなどの表示例を用意しています。設定と確認手順は
 [Storybookの手順書](../../docs/STORYBOOK_SETUP_GUIDE.md)を参照してください。
 
 ## Web の認証基盤
@@ -82,12 +82,11 @@ Cookie の更新を SDK に任せて `/login` へ移動・画面情報を更新�
 ログアウト後に `/projects` を開くと、未ログイン時と同じく `/login` へ移動します。
 
 `lg`（64rem / 通常1024px）以上はサイドバー、`lg` 未満は高さ48pxの `AppHeader` を表示します。
-ヘッダーにはハンバーガーメニュー、ロゴと `Redmine Nest`、名前の先頭文字のアイコンを配置します。
+ヘッダーにはハンバーガーメニュー、ロゴと `Bluemine`、名前の先頭文字のアイコンを配置します。
 右のアイコンには操作を持たせず、ハンバーガーメニューから shadcn/ui の Sheet を開きます。
 Sheet では現在の項目を青色にし、リンク選択時に閉じます。リストだけをスクロール可能にして、`UserMenu` を最下部に置きます。
 Sheet は `keepMounted` でログアウトの処理中状態・エラーを保持し、閉じる際や PC 幅への切り替え時は小メニューも閉じます。
-処理順と図は [ログイン・ログアウトの学習メモ](../../docs/WEB_AUTH_LOGIN_FLOW.md) と
-[登録・メール確認の学習メモ](../../docs/WEB_AUTH_REGISTRATION_FLOW.md) に記録しています。
+認証の構成と処理の責務は [ARCHITECTURE.md](../../docs/ARCHITECTURE.md#web-の認証基盤) を参照してください。
 
 ### ローカルの確認メール
 
@@ -116,7 +115,7 @@ CI の `quality` job は、build step に Supabase の URL と Publishable key �
 デプロイする Web の build では、接続先の環境に対応した公開設定を用意してください。
 
 ```bash
-pnpm --filter @redmine-next-nest/web typecheck
-pnpm --filter @redmine-next-nest/web lint
-pnpm --filter @redmine-next-nest/web test
+pnpm --filter @bluemine/web typecheck
+pnpm --filter @bluemine/web lint
+pnpm --filter @bluemine/web test
 ```

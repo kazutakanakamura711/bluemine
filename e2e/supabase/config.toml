@@ -1,5 +1,5 @@
 # 開発用とは別のSupabaseとして管理する
-project_id = "redmine-next-nest-browser-e2e"
+project_id = "bluemine-browser-e2e"
 
 [api]
 enabled = true

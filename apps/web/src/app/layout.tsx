@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Redmine Next Nest',
+  title: 'Bluemine',
   description: '小規模チーム向けのプロジェクト・タスク管理アプリ',
 };
 

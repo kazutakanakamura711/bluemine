@@ -2,7 +2,7 @@
 
 ## 目的
 
-Redmine Next Nest は、少人数向けのプロジェクト・タスク管理アプリケーションである。複雑な抽象化より、各ファイルの責務が明確で読みやすい構成を優先する。
+Bluemine は、少人数向けのプロジェクト・タスク管理アプリケーションである。複雑な抽象化より、各ファイルの責務が明確で読みやすい構成を優先する。
 
 正式な仕様は `docs/REQUIREMENTS.md` を入口とし、データルールは `docs/DOMAIN_MODEL.md`、画面・APIは `docs/UI_API.md`、構成は `docs/ARCHITECTURE.md` を参照する。
 
@@ -48,6 +48,8 @@ Frontend は Next.js App Router を使う。`page.tsx` と `layout.tsx` は Serv
 
 ## 変更管理
 
+- 個人向けの学習メモ、詰まり対応、作業履歴、ToDo、調査レポートは `docs/local/` に置き、Git 管理しない。正式仕様・アーキテクチャ・共通コマンドは公開する docs に残す。
+- 作業を再開するときは、`docs/local/DEVELOPMENT_PROGRESS.md` と `docs/local/QUALITY_SECURITY_FOLLOW_UP_TASKS.md` が存在すれば確認し、未着手タスクと直近の合意を引き継ぐ。正式仕様との食い違いは実装前に示す。
 - ユーザーの変更を保持し、無関係なリファクタリングや依存追加をしない。
 - 仕様と実装が矛盾する場合は、推測で実装せず差分を示す。
 - 大きな設計変更、認証、権限、migration、外部サービス連携は、影響と確認方法を先に明確にする。

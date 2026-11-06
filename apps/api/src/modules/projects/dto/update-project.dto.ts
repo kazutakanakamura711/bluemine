@@ -28,7 +28,7 @@ export class UpdateProjectDto {
   @ApiPropertyOptional({
     type: String,
     description: 'プロジェクトの概要・目的',
-    example: 'Redmine Next Nest の開発プロジェクト',
+    example: 'Bluemine の開発プロジェクト',
     maxLength: 2000,
     nullable: true,
   })

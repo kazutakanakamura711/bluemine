@@ -12,13 +12,7 @@ const command = app === 'api' ? process.execPath : 'pnpm';
 const args =
   app === 'api'
     ? ['apps/api/dist-e2e/main.js']
-    : [
-        '--filter',
-        '@redmine-next-nest/web',
-        'start',
-        '--hostname',
-        '127.0.0.1',
-      ];
+    : ['--filter', '@bluemine/web', 'start', '--hostname', '127.0.0.1'];
 
 const child = spawn(command, args, {
   cwd: rootDirectory,

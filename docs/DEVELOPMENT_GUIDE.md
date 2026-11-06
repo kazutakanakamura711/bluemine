@@ -1,69 +1,6 @@
-# 機能を実装する順番
+# 開発ガイド
 
-## Project 基本操作の次に進める順番
-
-Project の作成・一覧・詳細・更新・アーカイブ・解除、認証と Project 権限、メンバー管理 API と Web の一覧・追加・権限変更・削除 UI は PR #30 まで `develop` にマージ済み。Playwright の専用環境・ブラウザテスト6件・CIはPR #31でマージ済みで、マージ後のCIも3 jobが成功している。
-
-Storybookの最小設定・Button・CI・[手順書](./STORYBOOK_SETUP_GUIDE.md)はPR #32、Input＋LabelはPR #33、BadgeはPR #34、AlertはPR #35、AlertDialogはPR #36で `develop` にマージ済みである。今回予定した代表部品まで導入が完了し、PR #36のマージ後CIも3 jobが成功している。検証結果は `QUALITY_SECURITY_FOLLOW_UP_TASKS.md` のタスク7を参照する。
-
-| 順番 | 対象 | 到達点 |
-| --- | --- | --- |
-| 1 | Supabase Auth と Project 権限 | ログイン、API の token 検証、User / ProjectMember、owner 登録、参加者だけの閲覧、owner だけの設定・アーカイブ操作を実装する。メンバー管理と権限別の API E2E も確認する。 |
-| 2 | Playwright の導入 | ログインと Project の作成・更新・アーカイブ・解除を、専用データを使うブラウザE2Eとしてローカルと CI で確認する。 |
-| 3 | Storybook の導入 | 既存の再利用 UI から story を作り、代表的な状態を画面から切り離して確認できるようにする。カタログの build を CI でも確認する。 |
-| 4 | Task CRUD と Task 権限 | Project に属する Task の API と画面を操作ごとに追加する。最初から ProjectMember の role、別 Project へのアクセス、アーカイブ状態を検証し、主要導線と再利用 UI の確認も拡張する。 |
-
-開発用 DB の既存 Project 6 件は試作データとして削除済み。作成者を記録していなかったため、所有者を推測して割り当てる移行処理は入れない。新規 Project は認証済みの作成者を owner として登録する。認証・権限・DB変更の影響と確認方法は実装前に明確にする。
-
-各段階は複数の小さな Pull Request に分けてよい。Task の権限判定は Task API と同じ変更で入れ、認証なしの Task endpoint を新たに追加しない。
-Task は一覧・詳細、作成、更新、削除を操作ごとに進め、対応する画面と API E2E を追加する。主要導線が増えた時点で Playwright、再利用 UI が増えた時点で Storybook も更新する。
-
-### Task 一覧 API の区切り（2026-10-27）
-
-Task モデル・migration と `GET /api/projects/:projectId/tasks` は PR #37 で `develop` にマージ済みである。その区切りで Task 一覧の API E2E は25件、既存を含む API E2E 全体は245件が専用環境で成功した。ユーザーは Swagger で token なしの401、参加 Project の200と空配列、存在しない Project の404を確認している。この時点では詳細・作成・更新・削除 API と Web は後続としていた。
-
-次の機能は Task 一覧画面 → 詳細 → 作成 → 更新 → 削除の順で、小さく進める。
-一覧画面を作るときに Table、フォームを作るときに Textarea の story を追加し、Task 作成の主要導線ができた段階で Playwright を拡張する。一覧 API だけの変更では story を追加しない。
-
-### Task 一覧 Web の区切り（2026-10-28）
-
-認証付きの Task 一覧取得と、一覧・空状態・loading・error は PR #38 で `develop` にマージ済みである。
-タスクは `/projects/[projectId]/tasks`、設定は `/projects/[projectId]/setting` に分け、それぞれのページでデータを取得し、画面に合う loading を表示する。Project の入口 URL はタスク一覧へ転送する。
-ユーザーは、開発用データによる PC・モバイルの一覧表示、0件の表示、エラーから再試行での復旧と、`pnpm test`・`pnpm lint`・`pnpm typecheck`・`pnpm build` の成功を確認している。
-PR 前にエージェントが format check、Storybook build、ブラウザ E2E 用 build、変更したタブ導線・設定更新・アーカイブ解除の Playwright 2件の成功を確認した。専用 DB・Supabase の実行前後のデータ件数は0件である。
-その後、画面の利用範囲に合わせた配置整理は PR #39、共通の状態・優先度・権限定義の `features` 配下への移動は PR #40 で `develop` にマージ済みである。
-
-### Task 詳細 API の区切り（2026-10-29）
-
-`feat/phase-2/task-detail-api` では、`GET /api/projects/:projectId/tasks/:taskId` を実装済みである。
-既存の Controller → Service → Repository → PrismaService の構成に追加し、DB 定義・migration の変更や DDD・クリーンアーキテクチャへの移行は行っていない。
-本人の参加情報を確認した後、Task ID と Project ID の両方で1件を取得する。owner・member・viewer とアーカイブ状態の6通りで閲覧でき、Task 不在・所属違いは同じ404とする。
-
-詳細の API E2E は15件を追加し、専用 DB・Supabase で一覧25件と合わせて40件の成功を確認した。認証・メール条件、Project 不在・非参加、参加情報削除後の拒否、返却する10項目と日付・日時、取得前後のデータ維持を確認している。
-最終確認では既存を含む API E2E 全260件・4ファイル、API 単体テスト16件、API lint・typecheck・buildが成功した。実行前後の専用 DB の User・Project・ProjectMember・Task と専用 Supabase の Auth ユーザーはすべて0件で、確認後は専用環境を終了した。
-ユーザーは Swagger で、参加 Project の実在する Task の200、Task 不在の404、Project 不在の404、token なしの401を手動確認し、問題がないことを報告した。
-Web の変更はないため、この区切りでは Web テスト・Web build・Storybook build・Playwright は再実行していない。
-API 契約と検証内容の詳細は [UI_API.md](./UI_API.md#タスク詳細-get-apiprojectsprojectidtaskstaskid) と [API README](../apps/api/README.md#task-詳細の-api-e2e) を参照する。
-
-次は `/projects/[projectId]/tasks/[taskId]` の閲覧画面と一覧からのリンクを、別の小さな変更として進める。作成・更新・削除は、その後の操作として扱う。
-
-### Task 詳細 Web の区切り（2026-10-29）
-
-`feat/phase-2/task-detail-web` では、認証付きの詳細取得、`/projects/[projectId]/tasks/[taskId]` の閲覧画面、loading・error・404、一覧から詳細へのリンクを実装した。詳細はPCで本文・属性を左右に、モバイルで縦に並べる。一覧もFigmaの構成に合わせて全幅の表とコンパクトなカードに整理し、参加権限・期限超過を表示する。
-
-Taskの型・状態／優先度のバッジを `features/tasks` で共有し、日本時間の日時整形は共通の `formatDateTime()` にまとめた。API・Prisma schema・migration・依存関係は変更していない。番号・担当者・報告者などの追加項目は未実装である。
-
-ユーザーは `pnpm test`・`pnpm lint`・`pnpm typecheck`・`pnpm build`・`pnpm test:e2e`・`pnpm storybook:build` の成功とStorybookの表示を確認した。詳細取得に一時的な例外を入れてエラー画面を確認し、その例外は削除済みである。自動テストでは認証付き取得・404・取得失敗・未設定項目・日時表示・再試行の呼び出しと、PC・モバイルの一覧→詳細→再読み込み→一覧への復帰を確認する。
-
-PR前の最終確認では、`pnpm format:check`、ブラウザテストの型チェック、専用環境用のAPI・Web build、Playwright全7件が成功した。一覧・詳細のPC／モバイル画像を `docs/images/task-list-updated-*.png`・`docs/images/task-detail-*.png` に保存している。実行前後の専用DBのUser・Project・ProjectMember・Taskと専用SupabaseのAuthユーザーはすべて0件で、確認後は専用環境を終了した。
-
-### Task の追加項目の方針（2026-10-29）
-
-Task詳細Webの作業に続く追加範囲として、番号・担当者・報告者を合意した。Project内の番号は安全な採番処理とDBの一意制約で守り、採番とTask作成を同じtransactionに含める。担当者は `User.id` または `null` とし、報告者は作成者の `User.id` を必須で記録する。参加情報削除時には担当者を解除し、報告者は作成者の記録として保持する。
-
-現在のTask詳細Webとは変更を区切り、まずmigrationの影響と確認方法を明確にする。番号の採番はTask作成処理、担当解除はメンバー削除処理と合わせて実装・検証する。既存の開発用Taskを削除して開始する方針だが、対象データの確認と削除は実装段階で扱う。今回の仕様整理ではPrisma schema・DB・API契約は変更しない。
-
-同時作成時の番号の重複防止、Task作成失敗時の取り消し、番号の再利用防止、Projectをまたぐ担当指定の拒否、メンバー削除と担当設定の競合をAPI E2Eで確認する。具体的なデータルールは [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) を参照する。
+Bluemine の機能を実装・確認する共通手順です。正式な仕様は [REQUIREMENTS.md](./REQUIREMENTS.md) を入口に確認します。
 
 ## 例: プロジェクト作成 API
 
@@ -138,7 +75,7 @@ POST /projects
 
 Husky はミスを早く見つける補助であり、CI やテストの代わりではない。hook が遅くなり過ぎないよう、全テストや build は PR 前・CI で実行する。
 
-Docker Compose、volume、`localhost` と `db` の接続先の違い、Prisma migration の切り分けは [DOCKER_NOTES.md](./DOCKER_NOTES.md) を参照する。
+Docker Compose・Supabase・Prisma の起動手順は [API README](../apps/api/README.md#開発)、ブラウザテストは [Playwright の手順](./PLAYWRIGHT_SETUP_GUIDE.md) を参照する。
 
 ## 今回はまだ導入しないもの
 

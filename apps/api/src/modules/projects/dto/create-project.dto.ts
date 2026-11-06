@@ -39,7 +39,7 @@ export class CreateProjectDto {
   // description: 任意、最大2,000文字
   @ApiPropertyOptional({
     description: 'プロジェクトの概要・目的',
-    example: 'Redmine Next Nest の開発プロジェクト',
+    example: 'Bluemine の開発プロジェクト',
     maxLength: 2000,
   })
   @IsString()

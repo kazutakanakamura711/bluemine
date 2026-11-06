@@ -72,7 +72,7 @@ export function AppHeader({ projects, userName, userEmail }: AppHeaderProps) {
             <ClipboardList aria-hidden="true" className="size-3.5" />
           </div>
           <p className="truncate text-sm font-semibold tracking-tight">
-            Redmine Nest
+            Bluemine
           </p>
         </div>
 
@@ -97,7 +97,7 @@ export function AppHeader({ projects, userName, userEmail }: AppHeaderProps) {
             <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-indigo-600 text-white">
               <ClipboardList aria-hidden="true" className="size-3.5" />
             </span>
-            Redmine Nest
+            Bluemine
           </SheetTitle>
           <SheetDescription className="sr-only">
             プロジェクト画面に移動するメニューです。

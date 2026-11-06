@@ -1,18 +1,18 @@
 {
-  "name": "redmine-next-nest",
+  "name": "bluemine",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "scripts": {
-    "dev:web": "pnpm --filter @redmine-next-nest/web dev",
-    "dev:api": "pnpm --filter @redmine-next-nest/api start:dev",
-    "storybook": "pnpm --filter @redmine-next-nest/web storybook",
-    "storybook:build": "pnpm --filter @redmine-next-nest/web storybook:build",
+    "dev:web": "pnpm --filter @bluemine/web dev",
+    "dev:api": "pnpm --filter @bluemine/api start:dev",
+    "storybook": "pnpm --filter @bluemine/web storybook",
+    "storybook:build": "pnpm --filter @bluemine/web storybook:build",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "test:e2e": "pnpm --filter @redmine-next-nest/api test:e2e",
+    "test:e2e": "pnpm --filter @bluemine/api test:e2e",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
     "prepare": "husky",
@@ -33,7 +33,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs,json,css,md,yml,yaml}": "prettier --write",
-    "apps/web/**/*.{ts,tsx,js,mjs}": "pnpm --filter @redmine-next-nest/web exec eslint --fix",
-    "apps/api/**/*.ts": "pnpm --filter @redmine-next-nest/api exec oxlint --fix"
+    "apps/web/**/*.{ts,tsx,js,mjs}": "pnpm --filter @bluemine/web exec eslint --fix",
+    "apps/api/**/*.ts": "pnpm --filter @bluemine/api exec oxlint --fix"
   }
 }

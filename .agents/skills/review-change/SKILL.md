@@ -1,6 +1,6 @@
 ---
 name: review-change
-description: Redmine Next Nest の変更を、セキュリティ、レイヤーの責務、API とデータベースの正確性、不足している重要なテストの観点でレビューする。
+description: Bluemine の変更を、セキュリティ、レイヤーの責務、API とデータベースの正確性、不足している重要なテストの観点でレビューする。
 ---
 
 # 変更をレビューする
