@@ -14,19 +14,20 @@ import {
   TaskStatusBadge,
 } from '@/features/tasks/components/task-badges';
 import type { Task } from '@/features/tasks/types/task';
-import { formatDateTime } from '@/lib/format-date';
+import { formatDateOnly, formatDateTime } from '@/lib/format-date';
 
 type TaskDetailProps = {
   task: Task;
   projectKey: string;
   projectName: string;
   isArchived: boolean;
+  headerAction?: React.ReactNode;
 };
 
 function TaskDate({ value }: { value: string | null }) {
   // 開始日・期限は時刻を持たないため、タイムゾーン変換せず表示する。
   return value ? (
-    <time dateTime={value}>{value.replaceAll('-', '/')}</time>
+    <time dateTime={value}>{formatDateOnly(value)}</time>
   ) : (
     <span className="text-muted-foreground">未設定</span>
   );
@@ -37,39 +38,47 @@ export function TaskDetail({
   projectKey,
   projectName,
   isArchived,
+  headerAction,
 }: TaskDetailProps) {
   const tasksPath = `/projects/${encodeURIComponent(task.projectId)}/tasks`;
 
   return (
     <>
-      <header className="flex min-h-18 min-w-0 flex-col justify-center gap-1 border-b border-border bg-background px-4 py-3 sm:px-6">
-        <Breadcrumb aria-label="パンくずリスト">
-          <BreadcrumbList className="gap-1 text-xs">
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href="/projects" />}>
-                プロジェクト一覧
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem className="min-w-0">
-              <BreadcrumbLink
-                render={<Link href={tasksPath} />}
-                className="wrap-anywhere"
-              >
-                {projectName}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <BreadcrumbPage>
-                {projectKey}-{task.number}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <h1 className="text-base font-semibold tracking-tight">
-          {projectKey}-{task.number}
-        </h1>
+      <header className="flex min-h-18 min-w-0 flex-col justify-center gap-1 border-b border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="min-w-0 space-y-1">
+          <Breadcrumb aria-label="パンくずリスト">
+            <BreadcrumbList className="gap-1 text-xs">
+              <BreadcrumbItem>
+                <BreadcrumbLink render={<Link href="/projects" />}>
+                  プロジェクト一覧
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator>/</BreadcrumbSeparator>
+              <BreadcrumbItem className="min-w-0">
+                <BreadcrumbLink
+                  render={<Link href={tasksPath} />}
+                  className="wrap-anywhere"
+                >
+                  {projectName}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator>/</BreadcrumbSeparator>
+              <BreadcrumbItem>
+                <BreadcrumbPage>
+                  {projectKey}-{task.number}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+          <h1 className="text-base font-semibold tracking-tight">
+            {projectKey}-{task.number}
+          </h1>
+        </div>
+        {headerAction && (
+          <div className="mt-2 flex shrink-0 items-center gap-2 sm:mt-0">
+            {headerAction}
+          </div>
+        )}
       </header>
 
       {isArchived && (

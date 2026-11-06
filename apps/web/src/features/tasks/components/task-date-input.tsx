@@ -2,12 +2,12 @@
 
 import { useState, type Ref } from 'react';
 import { cn } from 'cn';
-import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import { ja } from 'react-day-picker/locale';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { formatDateOnly, toDateOnlyString } from '@/lib/format-date';
 import {
   Popover,
   PopoverContent,
@@ -51,7 +51,7 @@ export function TaskDateInput({
       <input
         type="hidden"
         name={name}
-        value={date ? format(date, 'yyyy-MM-dd') : ''}
+        value={date ? toDateOnlyString(date) : ''}
         disabled={disabled}
       />
       <Popover open={open} onOpenChange={setOpen}>
@@ -73,7 +73,7 @@ export function TaskDateInput({
             />
           }
         >
-          <span>{date ? format(date, 'yyyy/MM/dd') : '年 /月 /日'}</span>
+          <span>{date ? formatDateOnly(date) : '年 /月 /日'}</span>
           <CalendarIcon
             aria-hidden="true"
             className="size-3.5 text-slate-600"

@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import type { Task } from '@/features/tasks/types/task';
 import TaskDetailError from '../error';
 import TaskDetailLoading from '../loading';
+import { EditTaskSheet } from './edit-task-sheet';
 import { TaskDetail } from './task-detail';
 
 const task: Task = {
@@ -25,7 +26,7 @@ const task: Task = {
 const meta = {
   title: 'Projects/TaskDetail',
   component: TaskDetail,
-  parameters: { layout: 'fullscreen' },
+  parameters: { layout: 'fullscreen', nextjs: { appDirectory: true } },
   decorators: [
     (Story) => (
       <div className="min-h-screen bg-slate-50 lg:ml-56">
@@ -45,6 +46,12 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const WithEditAction: Story = {
+  render: (args) => (
+    <TaskDetail {...args} headerAction={<EditTaskSheet task={args.task} />} />
+  ),
+};
 
 export const Loading: Story = {
   render: () => <TaskDetailLoading />,
@@ -115,4 +122,9 @@ export const WithoutUserNames: Story = {
       reporter: { id: 'reporter-1', name: null },
     },
   },
+};
+
+export const LongContentWithEditAction: Story = {
+  args: LongContent.args,
+  render: WithEditAction.render,
 };
