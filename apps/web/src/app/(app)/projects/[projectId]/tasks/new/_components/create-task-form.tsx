@@ -1,13 +1,10 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
 import { UserRound } from 'lucide-react';
 import { cn } from 'cn';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -30,13 +27,8 @@ import {
   TaskPriority,
   TaskPriorityDisplayText,
 } from '@/features/tasks/types/task-priority';
-import type { Task } from '@/features/tasks/types/task';
-import { createTask, CreateTaskRequestError } from '../_lib/create-task';
-import {
-  createTaskFormSchema,
-  type CreateTaskFormValues,
-} from '../_lib/schema/create-task-form';
-import { TaskDateInput } from './task-date-input';
+import { TaskDateInput } from '@/features/tasks/components/task-date-input';
+import { useCreateTaskForm } from '../_lib/use-create-task-form';
 
 type CreateTaskFormProps = {
   projectId: string;
@@ -45,36 +37,15 @@ type CreateTaskFormProps = {
   disabled?: boolean;
 };
 
-function FormSection({
-  title,
-  disabled,
-  className,
-  children,
-}: {
-  title: string;
-  disabled: boolean;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <Card
-      className={cn(
-        'gap-0 rounded-sm border border-border bg-background py-0 ring-0',
-        className,
-      )}
-    >
-      <fieldset disabled={disabled} className="min-w-0">
-        <legend className="sr-only">{title}</legend>
-        <CardHeader className="block px-4 pt-5 sm:px-5">
-          <h2 className="text-xs font-semibold text-slate-700">{title}</h2>
-        </CardHeader>
-        <CardContent className="space-y-4 px-4 pt-4 pb-5 sm:px-5">
-          {children}
-        </CardContent>
-      </fieldset>
-    </Card>
-  );
-}
+// itemsにも表示名を渡し、ポップアップを開く前から日本語で表示する。
+const statusItems = Object.values(TaskStatus).map((value) => ({
+  value,
+  label: TaskStatusDisplayText[value],
+}));
+const priorityItems = Object.values(TaskPriority).map((value) => ({
+  value,
+  label: TaskPriorityDisplayText[value],
+}));
 
 function FieldLabel({
   htmlFor,
@@ -108,15 +79,36 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   ) : null;
 }
 
-// itemsにも表示名を渡し、ポップアップを開く前から日本語で表示する。
-const statusItems = Object.values(TaskStatus).map((value) => ({
-  value,
-  label: TaskStatusDisplayText[value],
-}));
-const priorityItems = Object.values(TaskPriority).map((value) => ({
-  value,
-  label: TaskPriorityDisplayText[value],
-}));
+function FormSection({
+  title,
+  disabled,
+  className,
+  children,
+}: {
+  title: string;
+  disabled: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card
+      className={cn(
+        'gap-0 rounded-sm border border-border bg-background py-0 ring-0',
+        className,
+      )}
+    >
+      <fieldset disabled={disabled} className="min-w-0">
+        <legend className="sr-only">{title}</legend>
+        <CardHeader className="block px-4 pt-5 sm:px-5">
+          <h2 className="text-xs font-semibold text-slate-700">{title}</h2>
+        </CardHeader>
+        <CardContent className="space-y-4 px-4 pt-4 pb-5 sm:px-5">
+          {children}
+        </CardContent>
+      </fieldset>
+    </Card>
+  );
+}
 
 // 入力値の管理・検証と、作成APIへの送信を担当する。
 export function CreateTaskForm({
@@ -125,36 +117,18 @@ export function CreateTaskForm({
   assignees,
   disabled = false,
 }: CreateTaskFormProps) {
-  const router = useRouter();
-  const tasksPath = `/projects/${encodeURIComponent(projectId)}/tasks`;
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [hasCreated, setHasCreated] = useState(false);
-  // 検証開始から移動までをロックし、再描画前の連打でも同じPOSTを重ねない。
-  const submitLock = useRef(false);
   const {
     register,
     handleSubmit,
-    // Select・日付入力のような独自UIは、Controller経由でフォームにつなぐ。
     control,
-    formState: { errors, isSubmitting },
-  } = useForm<CreateTaskFormValues>({
-    resolver: zodResolver(createTaskFormSchema),
-    // 初回は送信時に検証し、送信後は入力の修正に合わせてエラーを更新する。
-    mode: 'onSubmit',
-    reValidateMode: 'onChange',
-    defaultValues: {
-      title: '',
-      description: '',
-      status: TaskStatus.Todo,
-      priority: TaskPriority.Normal,
-      assigneeId: '',
-      startDate: null,
-      dueDate: null,
-    },
-  });
-  // 作成成功後も、詳細ページへの移動が終わるまでは操作を止める。
-  const isBusy = isSubmitting || hasCreated;
-  const isDisabled = disabled || isBusy;
+    errors,
+    isBusy,
+    isDisabled,
+    hasCreated,
+    submitError,
+    tasksPath,
+    onSubmit,
+  } = useCreateTaskForm(projectId, disabled);
   const displayName = reporterName?.trim() || '名前未設定';
   const inputClassName =
     'h-9 rounded-sm border-gray-300 px-3 text-sm placeholder:text-slate-400 md:h-8 md:text-xs';
@@ -168,54 +142,12 @@ export function CreateTaskForm({
     })),
   ];
 
-  const onSubmit = async (values: CreateTaskFormValues) => {
-    setSubmitError(null);
-
-    let task: Task;
-    try {
-      // APIが受け取る7項目を明示し、未設定の値と日付の形式を揃える。
-      task = await createTask(projectId, {
-        title: values.title,
-        description: values.description || null,
-        status: values.status,
-        priority: values.priority,
-        assigneeId: values.assigneeId || null,
-        startDate: values.startDate
-          ? format(values.startDate, 'yyyy-MM-dd')
-          : null,
-        dueDate: values.dueDate ? format(values.dueDate, 'yyyy-MM-dd') : null,
-      });
-    } catch (error) {
-      submitLock.current = false;
-      // 同じstatusでも理由が異なるため、APIが返したメッセージを表示する。
-      setSubmitError(
-        error instanceof CreateTaskRequestError
-          ? error.message
-          : 'タスクの作成に失敗しました。時間をおいて、もう一度お試しください。',
-      );
-      return;
-    }
-
-    // 保存成功後の移動は、API失敗時の処理と分ける。入力の再送信は許可しない。
-    setHasCreated(true);
-    router.push(`${tasksPath}/${encodeURIComponent(task.id)}`);
-    router.refresh();
-  };
-
   return (
     <form
       noValidate
       aria-label="タスク作成フォーム"
       aria-busy={isBusy}
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (isDisabled || submitLock.current) return;
-        submitLock.current = true;
-        void handleSubmit(onSubmit, () => {
-          // 検証エラーではAPIを呼ばず、修正後の送信を受け付ける。
-          submitLock.current = false;
-        })(event);
-      }}
+      onSubmit={handleSubmit(onSubmit)}
       className="grid min-w-0 grid-cols-1 items-start gap-4 p-4 sm:gap-6 sm:p-6 lg:grid-cols-3"
     >
       <FormSection
@@ -501,7 +433,7 @@ export function CreateTaskForm({
           >
             {hasCreated
               ? '作成しました'
-              : isSubmitting
+              : isBusy
                 ? '作成中...'
                 : 'タスクを作成'}
           </Button>

@@ -1,8 +1,8 @@
-import { format } from 'date-fns';
 import { z } from 'zod';
 
 import { TaskPriority } from '@/features/tasks/types/task-priority';
 import { TaskStatus } from '@/features/tasks/types/task-status';
+import { isDateOnlyBefore } from '@/lib/format-date';
 
 // BackendのMaxLengthと揃え、絵文字のサロゲートペアや表示形式の指定を二重に数えない。
 function characterCount(value: string): number {
@@ -20,7 +20,7 @@ const taskDateSchema = z
   .nullable();
 
 // Backendの入力ルールに合わせる。参加資格や最新の権限は、保存時にAPIが再確認する。
-export const createTaskFormSchema = z
+export const taskFormSchema = z
   .object({
     title: z
       .string()
@@ -49,11 +49,11 @@ export const createTaskFormSchema = z
       !startDate ||
       !dueDate ||
       // 時刻ではなく、画面で選択した年月日で比較する。同日も許可する。
-      format(dueDate, 'yyyy-MM-dd') >= format(startDate, 'yyyy-MM-dd'),
+      !isDateOnlyBefore(dueDate, startDate),
     {
       path: ['dueDate'],
       message: '期限は開始日以降の日付を指定してください',
     },
   );
 
-export type CreateTaskFormValues = z.infer<typeof createTaskFormSchema>;
+export type TaskFormValues = z.infer<typeof taskFormSchema>;

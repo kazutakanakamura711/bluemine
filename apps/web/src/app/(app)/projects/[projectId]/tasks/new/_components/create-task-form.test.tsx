@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -333,6 +334,53 @@ describe('CreateTaskFormの入力管理・検証', () => {
     expect(mocks.push).toHaveBeenCalledWith('/projects/project-1/tasks/task-1');
     fireEvent.submit(form);
     expect(mocks.createTask).toHaveBeenCalledOnce();
+  });
+
+  it('無効時と保存中のsubmitもブラウザ標準の送信を止め、保存中の入力無効化を維持する', async () => {
+    const user = userEvent.setup();
+    const disabledForm = renderForm(true);
+    const blockedEvent = new Event('submit', {
+      bubbles: true,
+      cancelable: true,
+    });
+    fireEvent(
+      screen.getByRole('form', { name: 'タスク作成フォーム' }),
+      blockedEvent,
+    );
+    expect(blockedEvent.defaultPrevented).toBe(true);
+    await waitFor(() => expect(mocks.createTask).not.toHaveBeenCalled());
+    disabledForm.unmount();
+
+    let resolveTask!: (value: Task) => void;
+    mocks.createTask.mockReturnValue(
+      new Promise<Task>((resolve) => {
+        resolveTask = resolve;
+      }),
+    );
+    renderForm();
+    await user.type(
+      screen.getByRole('textbox', { name: 'タイトル' }),
+      'タイトル',
+    );
+    const form = screen.getByRole('form', { name: 'タスク作成フォーム' });
+    fireEvent.submit(form);
+    await waitFor(() => expect(mocks.createTask).toHaveBeenCalledOnce());
+    const duplicateEvent = new Event('submit', {
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => {
+      fireEvent(form, duplicateEvent);
+    });
+    expect(duplicateEvent.defaultPrevented).toBe(true);
+    // 重複分のhandleSubmitが完了しても、実際のAPI保存が終わるまで入力を有効に戻さない。
+    await waitFor(() => expect(mocks.createTask).toHaveBeenCalledOnce());
+    expect(screen.getByRole('textbox', { name: 'タイトル' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'キャンセル' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '作成中...' })).toBeDisabled();
+    expect(form).toHaveAttribute('aria-busy', 'true');
+    resolveTask(createdTask);
+    await screen.findByRole('button', { name: '作成しました' });
   });
 
   it.each([

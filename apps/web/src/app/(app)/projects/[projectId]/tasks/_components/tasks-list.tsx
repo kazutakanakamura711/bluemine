@@ -17,7 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatDate } from '@/lib/format-date';
+import {
+  formatDate,
+  formatDateOnly,
+  getTodayDateOnly,
+  isDateOnlyBefore,
+} from '@/lib/format-date';
 
 type TasksListProps = {
   tasks: Task[];
@@ -53,7 +58,8 @@ function TaskUserIdentity({ user }: { user: Task['assignee'] }) {
 function TaskDueDate({ task, today }: { task: Task; today: string }) {
   if (!task.dueDate) return <span className="text-slate-400">—</span>;
 
-  const isOverdue = task.status !== TaskStatus.Done && task.dueDate < today;
+  const isOverdue =
+    task.status !== TaskStatus.Done && isDateOnlyBefore(task.dueDate, today);
 
   return (
     <span
@@ -68,14 +74,14 @@ function TaskDueDate({ task, today }: { task: Task; today: string }) {
           <span className="sr-only">期限超過</span>
         </>
       )}
-      <time dateTime={task.dueDate}>{task.dueDate.replaceAll('-', '/')}</time>
+      <time dateTime={task.dueDate}>{formatDateOnly(task.dueDate)}</time>
     </span>
   );
 }
 
 export function TaskList({ tasks, projectKey, headerAction }: TasksListProps) {
   // 期限は時刻を持たない日付なので、日本時間の今日と日付同士で比較する。
-  const today = formatDate(new Date().toISOString()).replaceAll('/', '-');
+  const today = getTodayDateOnly();
 
   return (
     <section aria-label="タスク一覧" className="min-w-0">

@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ProjectDetail } from '../../_lib/get-project';
@@ -9,6 +10,7 @@ import TaskDetailPage from './page';
 const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   getTask: vi.fn(),
+  getProjectMembers: vi.fn(),
   notFound: vi.fn(() => {
     throw new Error('NEXT_NOT_FOUND');
   }),
@@ -16,7 +18,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../_lib/get-project', () => ({ getProject: mocks.getProject }));
 vi.mock('./_lib/get-task', () => ({ getTask: mocks.getTask }));
-vi.mock('next/navigation', () => ({ notFound: mocks.notFound }));
+vi.mock('../../members/_lib/get-project-members', () => ({
+  getProjectMembers: mocks.getProjectMembers,
+}));
+vi.mock('next/navigation', () => ({
+  notFound: mocks.notFound,
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 const project: ProjectDetail = {
   id: 'project-id',
@@ -58,6 +66,14 @@ describe('TaskDetailPage', () => {
     vi.clearAllMocks();
     mocks.getProject.mockResolvedValue(project);
     mocks.getTask.mockResolvedValue(task);
+    mocks.getProjectMembers.mockResolvedValue([
+      {
+        id: 'membership-1',
+        userId: 'user-2',
+        role: 'viewer',
+        user: { name: '担当者候補', email: 'private@example.test' },
+      },
+    ]);
   });
 
   it.each([ProjectRole.Owner, ProjectRole.Member, ProjectRole.Viewer])(
@@ -110,8 +126,17 @@ describe('TaskDetailPage', () => {
       expect(
         screen.queryByRole('navigation', { name: 'プロジェクト詳細' }),
       ).not.toBeInTheDocument();
+      if (currentUserRole === ProjectRole.Viewer) {
+        expect(
+          screen.queryByRole('button', { name: '編集' }),
+        ).not.toBeInTheDocument();
+      } else {
+        expect(
+          screen.getByRole('button', { name: '編集' }),
+        ).toBeInTheDocument();
+      }
       expect(
-        screen.queryByRole('button', { name: /編集|削除|保存/ }),
+        screen.queryByRole('button', { name: /削除|保存/ }),
       ).not.toBeInTheDocument();
     },
   );
@@ -228,7 +253,7 @@ describe('TaskDetailPage', () => {
     expect(mocks.notFound).toHaveBeenCalledOnce();
   });
 
-  it.each(['getProject', 'getTask'] as const)(
+  it.each(['getProject', 'getTask', 'getProjectMembers'] as const)(
     '%sの取得失敗は404に変換せずエラー境界へ伝える',
     async (method) => {
       const error = new Error('取得に失敗しました。');
@@ -239,4 +264,48 @@ describe('TaskDetailPage', () => {
       if (method === 'getProject') expect(mocks.getTask).not.toHaveBeenCalled();
     },
   );
+  it.each([
+    [ProjectRole.Owner, false, true],
+    [ProjectRole.Member, false, true],
+    [ProjectRole.Viewer, false, false],
+    [ProjectRole.Owner, true, false],
+    [ProjectRole.Member, true, false],
+    [ProjectRole.Viewer, true, false],
+  ])(
+    '%s・アーカイブ%sの場合の編集表示と候補取得を確認する',
+    async (currentUserRole, isArchived, canEdit) => {
+      mocks.getProject.mockResolvedValue({
+        ...project,
+        isArchived,
+        currentUserRole,
+      });
+      await renderPage();
+      const button = screen.queryByRole('button', { name: '編集' });
+      if (canEdit) {
+        expect(button).toBeInTheDocument();
+        expect(mocks.getProjectMembers).toHaveBeenCalledExactlyOnceWith(
+          project.id,
+        );
+      } else {
+        expect(button).not.toBeInTheDocument();
+        expect(mocks.getProjectMembers).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it('候補の名前だけを表示し、参加情報IDではなくUser IDで選択する', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+    await user.click(screen.getByRole('button', { name: '編集' }));
+    await user.click(screen.getByRole('combobox', { name: '担当者' }));
+    await user.click(await screen.findByRole('option', { name: '担当者候補' }));
+    expect(document.querySelector('[name="assigneeId"]')).toHaveValue('user-2');
+    expect(screen.queryByText('private@example.test')).not.toBeInTheDocument();
+  });
+
+  it('候補取得時に参加資格を失った場合は404にする', async () => {
+    mocks.getProjectMembers.mockResolvedValue(null);
+    await expect(renderPage()).rejects.toThrow('NEXT_NOT_FOUND');
+    expect(mocks.notFound).toHaveBeenCalledOnce();
+  });
 });
