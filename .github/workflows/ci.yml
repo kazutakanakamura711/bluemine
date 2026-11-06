@@ -3,12 +3,12 @@ name: CI
 
 # どのイベントでワークフローを起動するか。
 on:
-  # develop 向け Pull Request の作成・更新・再オープン時に実行する。
+  # develop・main 向け Pull Request の作成・更新・再オープン時に実行する。
   pull_request:
-    branches: [develop]
-  # develop ブランチへの push 時に実行する。
+    branches: [develop, main]
+  # develop・main ブランチへの push 時に実行する。
   push:
-    branches: [develop]
+    branches: [develop, main]
 
 # CI にはリポジトリ内容の読み取りだけを許可する。
 permissions:
