@@ -1,5 +1,8 @@
 packages:
   - 'apps/*'
+overrides:
+  # GHSA-27r3-jxmh-p828: 2系の間接依存にも圧縮本文の解析が修正された版を適用する。
+  'body-parser@>=2.0.0 <2.4.0': '2.4.0'
 allowBuilds:
   '@parcel/watcher': set this to true or false
   '@prisma/engines': true
