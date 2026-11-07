@@ -117,7 +117,7 @@ priority: low  | normal      | high
 - 閲覧権限がないユーザーは、Project や Task を取得できない。
 - `done` にした日時は、基本 CRUD を完成させた後に追加する。Project内連番・担当者・報告者は、下記の合意済みの範囲として段階的に追加する。
 
-Taskの一覧・詳細・作成・更新のAPIとWebは実装済みである。削除APIは追加済みで、削除UIは後続とする。
+Taskの一覧・詳細・作成・更新・削除のAPIとWebは実装済みである。
 
 - 一覧・詳細の閲覧には本人の ProjectMember が必要であり、owner・member・viewer に許可する。`ownerId` が本人でも参加情報がなければ許可しない。参加情報の削除後は、同じ token でも取得できない。
 - アーカイブ済み Project の Task も閲覧できる。Project 不在と非参加者による取得は、同じ対象不在として扱う。

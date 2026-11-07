@@ -294,7 +294,7 @@ Project不在・非参加は404・「プロジェクトが見つかりません�
 参加Project内のTask不在と別ProjectのTaskは、同じ404・「タスクが見つかりません」で扱います。両Projectに参加していても所属の違うTaskは取得できません。
 レスポンス例とエラー本文は [UI_API.md](../../docs/UI_API.md#タスク詳細-get-apiprojectsprojectidtaskstaskid) を参照してください。
 
-Taskの一覧・詳細・作成・更新のAPIとWebは実装済みです。Task削除APIは追加済みで、削除UIは後続とします。
+Taskの一覧・詳細・作成・更新・削除のAPIとWebは実装済みです。
 
 ## Task 作成 API
 
