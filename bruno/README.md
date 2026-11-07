@@ -19,6 +19,7 @@ Bruno で [Bluemine-api](./bluemine-api/) をコレクションとして開き�
 | [get-tasks](./bluemine-api/get-tasks.yml)                                   | NestJS: `GET /api/projects/:projectId/tasks`               | 参加者がタスク一覧を取得                   |
 | [create-task](./bluemine-api/create-task.yml)                               | NestJS: `POST /api/projects/:projectId/tasks`              | owner・memberがタスクを作成                |
 | [update-task](./bluemine-api/update-task.yml)                               | NestJS: `PATCH /api/projects/:projectId/tasks/:taskId`     | owner・memberがタスクを部分更新            |
+| [delete-task](./bluemine-api/delete-task.yml)                               | NestJS: `DELETE /api/projects/:projectId/tasks/:taskId`    | ownerがタスクを削除                        |
 | [supabase-update-password](./bluemine-api/supabase-update-password.yml)     | Supabase: `PUT /auth/v1/user`                              | ログインユーザーのパスワードを変更         |
 
 NestJS は `http://localhost:3001`、ローカル Supabase は `http://127.0.0.1:54321` で動きます。
@@ -260,6 +261,12 @@ Bodyはtitleだけでも送信できます。担当者を指定する場合は`a
 説明・担当者・日付を`null`にすると、その項目を解除します。タイトル・状態・優先度の`null`と、空の本文`{}`は400になります。番号・報告者は送信しません。
 
 Sendして200と更新後のTaskが返ることを確認し、`get-task`でも保存結果を確認します。同じ値だけを送信した場合は200となり、`updatedAt`も維持します。viewerの更新は403、アーカイブ済みProjectは409です。入力とエラーの詳細は[更新APIの仕様](../docs/UI_API.md#タスク更新-patch-apiprojectsprojectidtaskstaskid)を参照してください。
+
+## タスクを削除する
+
+[delete-task](./bluemine-api/delete-task.yml)を開き、リクエストのVariablesに削除してよいTaskの`projectId`と`taskId`を設定します。表示用の番号ではなくTaskの`id`を使い、Bodyは送信しません。LocalのSecretsの`accessToken`には、そのProjectのowner本人のtokenを設定します。ブラウザのログイン状態とは別なので、`auth-me`でBrunoの実行者を確認します。
+
+成功時は204で本文は空です。一覧・詳細またはStudioで削除結果を確認し、同じリクエストを再送すると404になります。member・viewerの削除は403、アーカイブ済みProjectは409、別ProjectのTaskは404です。削除しても番号は詰めず、採番カウンターも下げません。詳細は[削除APIの仕様](../docs/UI_API.md#タスク削除-delete-apiprojectsprojectidtaskstaskid)を参照してください。
 
 ## Swagger と公式資料
 

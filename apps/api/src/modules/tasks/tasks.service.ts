@@ -188,4 +188,38 @@ export class TasksService {
     // updated・unchangedのどちらも、現在のTaskを返す。
     return result.task;
   }
+
+  async delete(projectId: string, taskId: string, userId: string) {
+    const member = await this.tasksRepository.findProjectMember(
+      projectId,
+      userId,
+    );
+    if (!member) {
+      throw new NotFoundException('プロジェクトが見つかりません');
+    }
+    if (member.role !== ProjectMemberRole.owner) {
+      throw new ForbiddenException('タスクを削除する権限がありません');
+    }
+
+    const result = await this.tasksRepository.delete({
+      projectId,
+      taskId,
+      userId,
+    });
+
+    if (result.status === 'project_not_found') {
+      throw new NotFoundException('プロジェクトが見つかりません');
+    }
+    if (result.status === 'forbidden') {
+      throw new ForbiddenException('タスクを削除する権限がありません');
+    }
+    if (result.status === 'project_archived') {
+      throw new ConflictException(
+        'アーカイブ済みのプロジェクトはタスクを削除できません',
+      );
+    }
+    if (result.status === 'task_not_found') {
+      throw new NotFoundException('タスクが見つかりません');
+    }
+  }
 }
