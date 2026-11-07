@@ -288,13 +288,13 @@ Swaggerで成功時の一覧・詳細を試す場合は、APIが接続する開�
 本人の ProjectMember を確認した後、`projectId` と `taskId` の両方で対象を取得します。owner・member・viewer に許可し、アーカイブ済みも閲覧できます。
 `ownerId` が本人でも参加情報がなければ取得できず、参加情報の削除後は同じtokenでも拒否します。
 
-成功時は200と、一覧の各要素と同じ10項目の単一オブジェクトを返します。未設定の項目の `null` と、日付・日時の形式も一覧と同じです。
+成功時は200と、一覧の各要素と同じ13項目の単一オブジェクトを返します。未設定の項目の `null` と、日付・日時の形式も一覧と同じです。
 tokenなし・形式不正・無効は401、メール未設定・未確認は403です。
 Project不在・非参加は404・「プロジェクトが見つかりません」とし、Taskの存在確認より先に判定します。
 参加Project内のTask不在と別ProjectのTaskは、同じ404・「タスクが見つかりません」で扱います。両Projectに参加していても所属の違うTaskは取得できません。
 レスポンス例とエラー本文は [UI_API.md](../../docs/UI_API.md#タスク詳細-get-apiprojectsprojectidtaskstaskid) を参照してください。
 
-Task一覧・詳細WebとPR #43の番号・担当者・報告者、PR #44の作成API、PR #45の作成画面はマージ済みです。更新APIの後に更新画面へ進み、削除は別の操作として追加します。
+Taskの一覧・詳細・作成・更新のAPIとWebは実装済みです。Task削除APIは追加済みで、削除UIは後続とします。
 
 ## Task 作成 API
 
@@ -331,6 +331,14 @@ Prisma StudioでTaskだけを作成しても`Project.lastTaskNumber`は増えま
 成功時は200と、詳細取得と同じ13項目の単一Taskを返します。同じ値だけを指定した場合は更新日時を維持します。認証・メール条件・viewer・Project不在・Task不在・担当者不正・日付不正・アーカイブ済みは、対応する401・400・403・404・409を返します。詳細は[UI_API.md](../../docs/UI_API.md#タスク更新-patch-apiprojectsprojectidtaskstaskid)を参照してください。
 
 `tasks.e2e-spec.ts`でHTTP入力・認証・認可・返却項目・DBへの保存・省略とnull・日付・同値更新を確認し、`tasks.repository.e2e-spec.ts`で保存失敗時のrollbackと、Project行のロック待ちの間に参加情報・アーカイブ・日付が変わる場合を確認します。ローカルでは下記の専用環境を使い、開発用DB・Authユーザーを変更しません。
+
+## Task 削除 API
+
+`DELETE /api/projects/:projectId/tasks/:taskId`は、未アーカイブのProjectに参加するownerだけが、そのProjectに属するTaskを物理削除します。リクエスト本文は不要で、成功時は204と空の本文を返します。Project・参加情報・User・他のTask、Projectの採番カウンターと更新日時は保持します。
+
+token不正は401、メール未確認またはmember・viewerは403、Project不在・非参加とTask不在・所属違い・削除済みはそれぞれ404、アーカイブ済みProjectは409です。認可・アーカイブ・対象の判定順、応答本文と同時操作の詳細は[削除APIの仕様](../../docs/UI_API.md#タスク削除-delete-apiprojectsprojectidtaskstaskid)を参照してください。
+
+`tasks.e2e-spec.ts`で認証・認可・HTTP応答・DBの変更範囲・番号の再利用防止・保存失敗時のrollbackを確認します。同時削除と、Task更新・アーカイブとの競合はProject行のロック待ちと保存順も確認します。ロック待ち中のアーカイブ・本人の参加資格変更は、専用DB内のtransactionで再現します。手動確認では、削除してよいTaskを使い、204とDB上の削除、同じIDへの再削除が404になることを確認します。
 
 ## 確認コマンド
 

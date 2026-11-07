@@ -113,11 +113,11 @@ priority: low  | normal      | high
 ```
 
 - タスクは必ず1つの Project に所属する。
-- アーカイブ済み Project にはタスクを作成・更新できない。
+- アーカイブ済み Project ではタスクを作成・更新・削除できない。
 - 閲覧権限がないユーザーは、Project や Task を取得できない。
 - `done` にした日時は、基本 CRUD を完成させた後に追加する。Project内連番・担当者・報告者は、下記の合意済みの範囲として段階的に追加する。
 
-Task の DB 定義と一覧 API は PR #37、Web の Task 一覧・空状態・loading・error は PR #38、詳細取得 API は PR #41でマージ済みであり、詳細WebとPR #43の番号・担当者・報告者もマージ済みである。`feat/phase-2/task-create-api`では作成APIを追加する。作成画面・更新・削除API・画面は後続とする。
+Taskの一覧・詳細・作成・更新のAPIとWebは実装済みである。削除APIは追加済みで、削除UIは後続とする。
 
 - 一覧・詳細の閲覧には本人の ProjectMember が必要であり、owner・member・viewer に許可する。`ownerId` が本人でも参加情報がなければ許可しない。参加情報の削除後は、同じ token でも取得できない。
 - アーカイブ済み Project の Task も閲覧できる。Project 不在と非参加者による取得は、同じ対象不在として扱う。
@@ -125,10 +125,13 @@ Task の DB 定義と一覧 API は PR #37、Web の Task 一覧・空状態・l
 - `description`・`startDate`・`dueDate` の未設定は `null` とする。開始日・期限は時刻を持たない日付であり、DB には `DATE` 型で保存する。
 - `createdAt`・`updatedAt` は日時として保存する。日付・日時の API 返却形式と一覧の並び順は [一覧の仕様](./UI_API.md#タスク一覧-get-apiprojectsprojectidtasks)、1件取得の返却形式とエラーは [詳細の仕様](./UI_API.md#タスク詳細-get-apiprojectsprojectidtaskstaskid) を参照する。
 - 作成APIはtitle・descriptionの文字数、日付の前後関係、owner・memberだけの作成権限、アーカイブ済みProjectへの作成禁止を検証する。更新時も対応するAPIで検証する。現在のDB定義には、文字数・日付の前後関係のCHECK制約は設けていない。
+- Taskの削除は対象ProjectのProjectMemberがownerの場合だけに許可する。`ownerId`が本人でも参加情報がなければ許可しない。URLのProjectに属するTaskを、状態にかかわらず1件だけ物理削除する。
+- 削除はProject行をロックしたtransactionで本人の参加情報・role、アーカイブ状態、Taskの所属・存在を再確認する。アーカイブ済みの場合はTaskの有無より先に拒否する。Task不在・別ProjectのTask・削除済みのTaskは同じ対象不在として扱う。
+- 削除時は対象Task以外のTask、Project、ProjectMember、担当者・報告者のUserとSupabase Authアカウントを保持する。`lastTaskNumber`を下げず、削除した番号を詰めたり再利用したりしない。認証時に行う実行者のUserプロフィール同期は、この不変性の対象外とする。
 
 ### Task の追加範囲（2026-10-29合意・段階導入中）
 
-PR #43で、次の3カラムと制約、Projectの採番用カウンター `lastTaskNumber`（初期値0）を追加済みである。一覧・詳細APIは `number`、担当者の `{ id, name }` または `null`、必須の報告者の `{ id, name }` を含む13項目を返す。Userの名前は未設定を許可する。一覧・詳細Webは番号・担当者・報告者を表示し、メンバー削除APIは対象Projectの担当を解除する。今回の作成APIで採番・担当者検証・報告者設定を追加する。
+PR #43で、次の3カラムと制約、Projectの採番用カウンター `lastTaskNumber`（初期値0）を追加済みである。一覧・詳細APIは `number`、担当者の `{ id, name }` または `null`、必須の報告者の `{ id, name }` を含む13項目を返す。Userの名前は未設定を許可する。一覧・詳細Webは番号・担当者・報告者を表示し、メンバー削除APIは対象Projectの担当を解除する。Task作成APIは採番・担当者検証・報告者設定を行う。
 
 | 項目 | 意味 | ルール |
 | --- | --- | --- |

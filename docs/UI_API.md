@@ -582,7 +582,7 @@ PATCH  /api/projects/:projectId/tasks/:taskId
 DELETE /api/projects/:projectId/tasks/:taskId
 ```
 
-Task の DB 定義と一覧 GET は PR #37、Web の一覧・空状態・loading・error は PR #38、詳細 GET は PR #41 で `develop` にマージ済みである。詳細Webと、PR #43の番号・担当者・報告者の追加もマージ済みである。`feat/phase-2/task-create-api` では作成POSTを追加する。作成画面・更新・削除は、後続の操作として追加する。
+Taskの一覧・詳細・作成・更新のAPIとWebは実装済みである。削除APIも追加済みで、削除UIは後続の操作として追加する。
 
 #### タスク一覧: GET /api/projects/:projectId/tasks
 
@@ -816,10 +816,34 @@ Serviceの事前確認後に脱退・viewerへの変更・アーカイブが保�
 
 実際に値が変わる場合は対象Taskの指定項目と`updatedAt`だけを変更する。番号・報告者・所属Project・作成日時、他のTask・Project・参加情報の値と更新日時を維持し、採番カウンターも変更しない。報告者が脱退済みでも更新でき、そのUserへの参照を保持する。拒否・保存失敗時はProject・参加情報・Taskを変更しない。認証時のUserプロフィール同期は、この不変性の対象外である。
 
-#### 後続の削除
+#### タスク削除: DELETE /api/projects/:projectId/tasks/:taskId
 
-- Taskの削除はownerだけに許可し、別の1操作として追加する。
-- URLの`projectId`とTaskの所属Projectが一致しない場合は削除できない。
+未アーカイブのProjectに参加するownerが、そのProjectに属するTaskを状態にかかわらず1件物理削除する。本人はAuthGuardが検証したtokenから特定し、`ownerId`が本人でもProjectMemberがなければ許可しない。リクエスト本文・入力DTOは不要であり、本文を送っても削除処理では参照しない。
+
+| パラメーター | 意味 |
+| --- | --- |
+| `projectId` | 削除するTaskが属するProjectのID |
+| `taskId` | 削除するTaskのID。表示用のProject内番号とは異なる |
+
+成功時は`204 No Content`を返し、本文は空とする。Task不在・別ProjectのTask・削除済みのTaskは同じ404とし、再削除は成功にしない。
+
+判定は、認証・メール確認、本人のmembership・owner権限、Projectのアーカイブ状態、Taskの所属・存在の順とする。保存時は同じtransaction内でProject行を`SELECT ... FOR UPDATE`でロックし、本人の最新の参加資格・role、アーカイブ状態、Taskの所属・存在を再確認する。Taskの確認・削除はともに`projectId`と`taskId`で限定する。
+
+| 条件 | 応答 |
+| --- | --- |
+| 未アーカイブのProjectに参加するownerが、所属Taskを削除 | `204`・本文なし |
+| tokenなし・形式不正・無効 | 既存認証処理の`401` |
+| メール未設定・未確認 | `403`・「確認済みのメールアドレスが必要です。」 |
+| Project不在・非参加（保存時の再確認を含む） | `404`・「プロジェクトが見つかりません」 |
+| 本人がmember・viewer（保存時の再確認を含む） | `403`・「タスクを削除する権限がありません」 |
+| Projectがアーカイブ済み | `409`・「アーカイブ済みのプロジェクトはタスクを削除できません」 |
+| Task不在・別ProjectのTask・削除済みのTask | 同じ`404`・「タスクが見つかりません」 |
+
+非参加者はアーカイブ状態・Taskの有無によらずProjectの404、member・viewerは403となる。ownerに対しては、アーカイブ済みの409をTask不在の404より先に判定する。
+
+削除・Task更新・Task作成・メンバーの追加／role変更／削除・アーカイブは、同じProject行のロックにより保存順を揃える。アーカイブが先に保存された場合は削除を409で拒否し、削除が先なら削除後にアーカイブできる。Task更新が先なら更新200の後に削除でき、削除が先なら後続の有効な更新は404となる。同じTaskを同時に削除した場合、先行は204、後続は404となる。保証するのはDBの保存順であり、HTTPレスポンスの到着順ではない。
+
+削除するのは対象Taskだけであり、Project・ProjectMember・User・Supabase Authアカウント、他のTaskの値と更新日時を保持する。Projectの`lastTaskNumber`と更新日時も変更せず、削除した番号を詰めたり再利用したりしない。拒否・保存失敗時はProject・ProjectMember・Taskを変更しない。認証時のUserプロフィール同期は、この不変性の対象外である。
 
 番号・担当者・報告者のデータルールは [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) を参照する。
 
@@ -834,4 +858,4 @@ GET/POST/PATCH/DELETE /api/projects/:projectId/tasks/:taskId/comments
 GET                    /api/projects/:projectId/tasks/:taskId/history
 ```
 
-Task の filter、ページネーション、Task number、親子タスク、履歴の自動作成もこの段階で扱う。
+Task の filter、ページネーション、親子タスク、履歴の自動作成もこの段階で扱う。

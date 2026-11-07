@@ -232,6 +232,444 @@ describe('Tasks API', () => {
     });
   }
 
+  describe('DELETE /api/projects/:projectId/tasks/:taskId', () => {
+    function deleteTask(projectId: string, taskId: string) {
+      return request(app.getHttpServer())
+        .delete(`/api/projects/${projectId}/tasks/${taskId}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+    }
+
+    const taskNotFound = {
+      message: 'タスクが見つかりません',
+      error: 'Not Found',
+      statusCode: 404,
+    };
+
+    // 固定時間ではなく、指定した接続によるロック待ちをDBで確認する。
+    async function waitForBlockedQuery(
+      blockerPid: number,
+      prefix: string,
+      table: string,
+    ) {
+      return vi.waitUntil(
+        async () => {
+          const [waiting] = await prisma.$queryRaw<{ pid: number }[]>`
+            SELECT pid FROM pg_stat_activity
+            WHERE ${blockerPid}::integer = ANY(pg_blocking_pids(pid))
+              AND query LIKE ${prefix + '%'} AND query LIKE ${'%' + table + '%'}
+          `;
+          return waiting?.pid;
+        },
+        { timeout: 3000, interval: 10 },
+      );
+    }
+
+    it.each(['todo', 'done'] as const)(
+      'ownerは%sのTaskを削除し、204と空の本文を返す',
+      async (status) => {
+        const project = await createProject();
+        const assignee = await createOtherUser();
+        await prisma.projectMember.create({
+          data: { projectId: project.id, userId: assignee.id, role: 'member' },
+        });
+        const task = await createTask(project.id, {
+          title: '削除するTask',
+          status,
+          assigneeId: assignee.id,
+        });
+        await createTask(project.id, { title: '残すTask' });
+        const otherProject = await createProject();
+        await createTask(otherProject.id);
+        const before = await readProjectState();
+        const assigneeBefore = await prisma.user.findUniqueOrThrow({
+          where: { id: assignee.id },
+        });
+
+        const response = await deleteTask(project.id, task.id).expect(204);
+
+        expect(response.text).toBe('');
+        expect(await readProjectState()).toEqual(
+          before.map((item) => ({
+            ...item,
+            tasks: item.tasks.filter((existing) => existing.id !== task.id),
+          })),
+        );
+        expect(
+          await prisma.user.findUniqueOrThrow({ where: { id: assignee.id } }),
+        ).toEqual(assigneeBefore);
+        await request(app.getHttpServer())
+          .get(`/api/projects/${project.id}/tasks/${task.id}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(404)
+          .expect(taskNotFound);
+      },
+    );
+
+    it.each([undefined, 'Basic invalid', 'Bearer invalid-token'])(
+      '認証ヘッダー%sは401で拒否し、データを変更しない',
+      async (authorization) => {
+        const project = await createProject();
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        const pending = request(app.getHttpServer()).delete(
+          `/api/projects/${project.id}/tasks/${task.id}`,
+        );
+        if (authorization) pending.set('Authorization', authorization);
+        await pending.expect(401);
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it.each([{ email: undefined }, { email_confirmed_at: undefined }])(
+      'メール条件を満たさなければ403で拒否する: %j',
+      async (emailState) => {
+        const project = await createProject();
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        const authService = app.get(AuthService);
+        const verifiedUser = await authService.verifyAccessToken(accessToken);
+        vi.spyOn(authService, 'verifyAccessToken').mockResolvedValueOnce({
+          ...verifiedUser,
+          ...emailState,
+        });
+        await deleteTask(project.id, task.id).expect(403);
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it.each([
+      ['member', false],
+      ['member', true],
+      ['viewer', false],
+      ['viewer', true],
+    ] as const)(
+      '%sはアーカイブ状態%sやTaskの有無によらず403で拒否する',
+      async (role, isArchived) => {
+        const project = await createProjectForRole(role, isArchived);
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        for (const taskId of [task.id, 'not-found']) {
+          await deleteTask(project.id, taskId)
+            .query({ userId: project.ownerId })
+            .expect(403)
+            .expect({
+              message: 'タスクを削除する権限がありません',
+              error: 'Forbidden',
+              statusCode: 403,
+            });
+        }
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it.each([false, true])(
+      '非参加者はアーカイブ状態%sやTaskの有無によらずProjectの404を返す',
+      async (isArchived) => {
+        const owner = await createOtherUser();
+        const project = await createProject(owner.id, isArchived);
+        const task = await createTask(project.id);
+        const before = await readProjectState();
+        for (const [projectId, taskId] of [
+          [project.id, task.id],
+          [project.id, 'not-found'],
+          ['not-found', task.id],
+        ]) {
+          await deleteTask(projectId, taskId)
+            .expect(404)
+            .expect(projectNotFound);
+        }
+        expect(await readProjectState()).toEqual(before);
+      },
+    );
+
+    it('ownerIdが本人でも参加情報がなければ404で拒否する', async () => {
+      const project = await createProject();
+      const task = await createTask(project.id);
+      await prisma.projectMember.delete({
+        where: { projectId_userId: { projectId: project.id, userId } },
+      });
+      const before = await readProjectState();
+      await deleteTask(project.id, task.id).expect(404).expect(projectNotFound);
+      expect(await readProjectState()).toEqual(before);
+    });
+
+    it('アーカイブ済みならTaskの有無や所属より先に409で拒否する', async () => {
+      const project = await createProject(userId, true);
+      const task = await createTask(project.id);
+      const otherProject = await createProject();
+      const otherTask = await createTask(otherProject.id);
+      const before = await readProjectState();
+      for (const taskId of [task.id, otherTask.id, 'not-found']) {
+        await deleteTask(project.id, taskId).expect(409).expect({
+          message: 'アーカイブ済みのプロジェクトはタスクを削除できません',
+          error: 'Conflict',
+          statusCode: 409,
+        });
+      }
+      expect(await readProjectState()).toEqual(before);
+    });
+
+    it('両Projectのownerでも別ProjectのTaskと不在のTaskは同じ404になる', async () => {
+      const project = await createProject();
+      const otherProject = await createProject();
+      const otherTask = await createTask(otherProject.id);
+      const before = await readProjectState();
+      for (const taskId of [otherTask.id, 'not-found']) {
+        await deleteTask(project.id, taskId).expect(404).expect(taskNotFound);
+      }
+      expect(await readProjectState()).toEqual(before);
+    });
+
+    it('削除済みのTaskを再び削除すると404になる', async () => {
+      const project = await createProject();
+      const task = await createTask(project.id);
+      await deleteTask(project.id, task.id).expect(204);
+      const before = await readProjectState();
+      await deleteTask(project.id, task.id).expect(404).expect(taskNotFound);
+      expect(await readProjectState()).toEqual(before);
+    });
+
+    it('同じTaskの同時削除は1件だけ成功し、後続は404になる', async () => {
+      const project = await createProject();
+      const task = await createTask(project.id);
+      const before = await readProjectState();
+      const responses = await Promise.all([
+        deleteTask(project.id, task.id),
+        deleteTask(project.id, task.id),
+      ]);
+      expect(responses.map((response) => response.status).sort()).toEqual([
+        204, 404,
+      ]);
+      expect(responses.find((response) => response.status === 204)?.text).toBe(
+        '',
+      );
+      expect(
+        responses.find((response) => response.status === 404)?.body,
+      ).toEqual(taskNotFound);
+      expect(await readProjectState()).toEqual(
+        before.map((item) => ({
+          ...item,
+          tasks: item.tasks.filter((existing) => existing.id !== task.id),
+        })),
+      );
+    });
+
+    it.each([
+      ['archive', 409],
+      ['remove_actor', 404],
+      ['demote_actor', 403],
+    ] as const)(
+      'Projectロック待ちの間に%sが保存されると最新状態で削除を拒否する',
+      async (operation, expectedStatus) => {
+        const project = await createProject();
+        const task = await createTask(project.id);
+        let release = () => {};
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        let ready = (_pid: number) => {};
+        let rejectReady = (_error: unknown) => {};
+        const locked = new Promise<number>((resolve, reject) => {
+          ready = resolve;
+          rejectReady = reject;
+        });
+
+        // ownerの脱退・降格は通常のAPIでは禁止されるため、保存時の再確認を直接再現する。
+        const blocker = prisma.$transaction(
+          async (tx) => {
+            await tx.$queryRaw`SELECT id FROM projects WHERE id = ${project.id} FOR UPDATE`;
+            if (operation === 'archive') {
+              await tx.project.update({
+                where: { id: project.id },
+                data: { isArchived: true },
+              });
+            } else if (operation === 'remove_actor') {
+              await tx.projectMember.delete({
+                where: { projectId_userId: { projectId: project.id, userId } },
+              });
+            } else {
+              await tx.projectMember.update({
+                where: { projectId_userId: { projectId: project.id, userId } },
+                data: { role: 'member' },
+              });
+            }
+            const [{ pid }] = await tx.$queryRaw<
+              { pid: number }[]
+            >`SELECT pg_backend_pid() AS pid`;
+            ready(pid);
+            await gate;
+          },
+          { timeout: 10000 },
+        );
+        blocker.catch(rejectReady);
+        let pending: Promise<request.Response> | undefined;
+        try {
+          const blockerPid = await locked;
+          pending = deleteTask(project.id, task.id).then(
+            (response) => response,
+          );
+          pending.catch(() => {});
+          await waitForBlockedQuery(blockerPid, '%SELECT', 'projects');
+          release();
+          await blocker;
+          const afterChange = await readProjectState();
+          const response = await pending;
+          expect(response.status).toBe(expectedStatus);
+          expect(await readProjectState()).toEqual(afterChange);
+          expect(
+            await prisma.task.findUnique({ where: { id: task.id } }),
+          ).toEqual(task);
+        } finally {
+          release();
+          await Promise.allSettled([blocker, ...(pending ? [pending] : [])]);
+        }
+      },
+      15000,
+    );
+
+    it.each([
+      ['update', 'delete'],
+      ['delete', 'update'],
+      ['delete', 'archive'],
+      ['delete', 'delete'],
+    ] as const)(
+      '%sがProjectを先にロックした場合は後続の%sが完了まで待つ',
+      async (first, second) => {
+        const project = await createProject();
+        const task = await createTask(project.id, { title: '変更前' });
+        const otherTask = await createTask(project.id, { title: '変更しない' });
+        let release = () => {};
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        let ready = (_pid: number) => {};
+        let rejectReady = (_error: unknown) => {};
+        const locked = new Promise<number>((resolve, reject) => {
+          ready = resolve;
+          rejectReady = reject;
+        });
+        const blocker = prisma.$transaction(
+          async (tx) => {
+            // Taskへの書き込みを待たせ、その間に最初のAPIがProject行を保持する。
+            await tx.$executeRaw`LOCK TABLE tasks IN SHARE MODE`;
+            const [{ pid }] = await tx.$queryRaw<
+              { pid: number }[]
+            >`SELECT pg_backend_pid() AS pid`;
+            ready(pid);
+            await gate;
+          },
+          { timeout: 10000 },
+        );
+        blocker.catch(rejectReady);
+        let pendingFirst: Promise<request.Response> | undefined;
+        let pendingSecond: Promise<request.Response> | undefined;
+        try {
+          const blockerPid = await locked;
+          pendingFirst = (
+            first === 'update'
+              ? request(app.getHttpServer())
+                  .patch(`/api/projects/${project.id}/tasks/${task.id}`)
+                  .set('Authorization', `Bearer ${accessToken}`)
+                  .send({ title: '変更後' })
+              : deleteTask(project.id, task.id)
+          ).then((response) => response);
+          pendingFirst.catch(() => {});
+          const firstPid = await waitForBlockedQuery(
+            blockerPid,
+            first === 'update' ? 'UPDATE' : 'DELETE',
+            'tasks',
+          );
+
+          pendingSecond = (
+            second === 'update'
+              ? request(app.getHttpServer())
+                  .patch(`/api/projects/${project.id}/tasks/${task.id}`)
+                  .set('Authorization', `Bearer ${accessToken}`)
+                  .send({ title: '変更後' })
+              : second === 'archive'
+                ? request(app.getHttpServer())
+                    .post(`/api/projects/${project.id}/archive`)
+                    .set('Authorization', `Bearer ${accessToken}`)
+                : deleteTask(project.id, task.id)
+          ).then((response) => response);
+          pendingSecond.catch(() => {});
+          await waitForBlockedQuery(
+            firstPid,
+            second === 'archive' ? 'UPDATE' : '%SELECT',
+            'projects',
+          );
+
+          release();
+          await blocker;
+          const [firstResponse, secondResponse] = await Promise.all([
+            pendingFirst,
+            pendingSecond,
+          ]);
+          expect(firstResponse.status).toBe(first === 'update' ? 200 : 204);
+          expect(secondResponse.status).toBe(
+            second === 'archive' ? 200 : first === 'update' ? 204 : 404,
+          );
+          if (first === 'update') {
+            expect(firstResponse.body.title).toBe('変更後');
+          }
+          if (secondResponse.status === 404) {
+            expect(secondResponse.body).toEqual(taskNotFound);
+          }
+          expect(
+            await prisma.task.findUnique({ where: { id: task.id } }),
+          ).toBeNull();
+          expect(
+            await prisma.task.findUniqueOrThrow({
+              where: { id: otherTask.id },
+            }),
+          ).toEqual(otherTask);
+          expect(
+            await prisma.project.findUniqueOrThrow({
+              where: { id: project.id },
+            }),
+          ).toMatchObject({
+            isArchived: second === 'archive',
+            lastTaskNumber: 2,
+          });
+        } finally {
+          release();
+          await Promise.allSettled([
+            blocker,
+            ...(pendingFirst ? [pendingFirst] : []),
+            ...(pendingSecond ? [pendingSecond] : []),
+          ]);
+        }
+      },
+      15000,
+    );
+
+    it('削除後に例外が起きた場合はtransactionを取り消す', async () => {
+      const project = await createProject();
+      const task = await createTask(project.id);
+      const before = await readProjectState();
+      const runTransaction = prisma.$transaction.bind(prisma);
+      let deletionSeen = false;
+      app.useLogger(false);
+      const spy = vi
+        .spyOn(prisma, '$transaction')
+        .mockImplementationOnce((operation, options) =>
+          runTransaction(async (tx) => {
+            await operation(tx);
+            deletionSeen =
+              (await tx.task.findUnique({ where: { id: task.id } })) === null;
+            throw new Error('削除後の失敗時のrollbackを確認する');
+          }, options),
+        );
+      try {
+        await deleteTask(project.id, task.id).expect(500);
+        expect(deletionSeen).toBe(true);
+        expect(await readProjectState()).toEqual(before);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+  });
+
   describe('PATCH /api/projects/:projectId/tasks/:taskId', () => {
     function patchTask(
       projectId: string,
@@ -956,7 +1394,10 @@ describe('Tasks API', () => {
       const otherProject = await createProject();
       const first = await postTask(project.id).expect(201);
       const second = await postTask(project.id).expect(201);
-      await prisma.task.delete({ where: { id: second.body.id } });
+      await request(app.getHttpServer())
+        .delete(`/api/projects/${project.id}/tasks/${second.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(204);
       const third = await postTask(project.id).expect(201);
       const other = await postTask(otherProject.id).expect(201);
       expect([

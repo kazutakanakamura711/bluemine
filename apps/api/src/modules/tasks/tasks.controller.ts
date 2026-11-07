@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -19,6 +22,7 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -185,6 +189,43 @@ export class TaskController {
     );
 
     return toTaskResponse(task);
+  }
+
+  @Delete(':taskId')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'プロジェクトのタスクを削除する（ownerのみ）',
+    description:
+      '指定したProject内のタスクを1件削除する。アーカイブ済みのProjectでは削除できない。リクエスト本文は使用しない。',
+  })
+  @ApiParam({
+    name: 'projectId',
+    description: 'タスクが所属するプロジェクトのID',
+  })
+  @ApiParam({
+    name: 'taskId',
+    description: '削除するタスクのID',
+  })
+  @ApiNoContentResponse({
+    description: 'タスクを削除する。レスポンス本文は返さない',
+  })
+  @ApiForbiddenResponse({
+    description: 'メールアドレスが未設定・未確認、または本人のroleがowner以外',
+  })
+  @ApiNotFoundResponse({
+    description:
+      'プロジェクトが存在しない、参加していない、または指定したProject内にタスクが存在しない。削除済みのIDも対象不在として扱う',
+  })
+  @ApiConflictResponse({
+    description: 'Projectがアーカイブ済み。タスクの有無より先に判定する',
+  })
+  async delete(
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<void> {
+    await this.tasksService.delete(projectId, taskId, request.user.id);
   }
 }
 
