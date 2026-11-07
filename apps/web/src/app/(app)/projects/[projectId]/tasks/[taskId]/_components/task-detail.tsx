@@ -88,7 +88,7 @@ export function TaskDetail({
         >
           <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
           <p>
-            このプロジェクトはアーカイブ済みです。タスクの作成・更新操作は無効化されています。
+            このプロジェクトはアーカイブ済みです。タスクの作成・更新・削除操作は無効化されています。
           </p>
         </div>
       )}

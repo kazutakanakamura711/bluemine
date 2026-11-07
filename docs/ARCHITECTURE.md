@@ -42,6 +42,8 @@ Task作成は、`tasks/new/page.tsx`でProject・本人・担当者候補を取�
 
 Task編集は同じ詳細URL上のSheetで行う。`tasks/[taskId]/page.tsx`は未アーカイブのowner・memberの場合だけ既存のメンバー取得処理を呼び、User IDと名前だけを担当者候補として渡す。`TaskDetail`は`headerAction`の配置を担当し、Client Componentの`EditTaskSheet`は開閉と外枠、`EditTaskForm`は入力欄とエラー表示を担当する。`tasks/[taskId]/_lib/use-edit-task-form.ts`の`useEditTaskForm`が保存済みTaskを初期値にしたReact Hook Form・Zodの入力管理・検証、変更項目だけのPATCH、二重送信防止、送信状態、APIエラーを担当する。成功時は渡された`onSuccess`でSheetを閉じ、`router.refresh()`で詳細を再取得する。フォームは`onBusyChange`で処理中の状態をSheetへ伝え、Sheetはキャンセル・閉じるボタン・Escape・背景の選択による閉鎖を防ぐ。失敗時は入力とSheetを保持し、閉じる操作と再試行を許可する。閉じた時点でフォームをアンマウントし、再表示時に最新のTaskから初期化する。
 
+Task削除UIでは、`tasks/[taskId]/page.tsx`が未アーカイブのownerにだけ`DeleteTaskDialog`を渡す。Client ComponentのDialogは入口・確認画面の表示とフォーカスを担当し、`tasks/[taskId]/_lib/use-delete-task-dialog.ts`のHookが開閉・二重送信防止・送信状態・エラー・成功後の一覧への移動を担当する。ブラウザ用セッションとDELETE APIへの接続は`tasks/[taskId]/_lib/delete-task.ts`が担当する。成功204では本文を読まず、API側の認可・アーカイブ状態とTaskの所属確認も維持する。
+
 作成・編集で同じルールを使うZodスキーマと型は`src/features/tasks/schema/task-form.ts`、日付入力は`src/features/tasks/components/task-date-input.tsx`で共有し、対応するテストも同じ場所に置く。画面全体のフォームは、初期値・配置・送信処理の違いがあるため各routeに残す。
 
 ログアウト操作のテストは `(app)/_components/logout-button.test.tsx` に置く。
