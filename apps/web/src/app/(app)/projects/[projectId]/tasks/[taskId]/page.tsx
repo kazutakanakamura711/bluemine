@@ -6,6 +6,7 @@ import { TaskDetail } from './_components/task-detail';
 import { getTask } from './_lib/get-task';
 import { EditTaskSheet } from './_components/edit-task-sheet';
 import { ProjectRole } from '@/features/projects/types/project-role';
+import { DeleteTaskDialog } from './_components/delete-task-dialog';
 
 type TaskDetailPageProps = {
   params: Promise<{ projectId: string; taskId: string }>;
@@ -34,6 +35,9 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
   const members = canEditTask ? await getProjectMembers(project.id) : [];
   if (members === null) notFound();
 
+  const canDeleteTask =
+    !project.isArchived && project.currentUserRole === ProjectRole.Owner;
+
   return (
     <TaskDetail
       task={task}
@@ -41,14 +45,27 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
       projectName={project.name}
       isArchived={project.isArchived}
       headerAction={
-        canEditTask ? (
-          <EditTaskSheet
-            task={task}
-            assignees={members.map((member) => ({
-              id: member.userId,
-              name: member.user.name,
-            }))}
-          />
+        canEditTask || canDeleteTask ? (
+          <>
+            {canEditTask && (
+              <EditTaskSheet
+                task={task}
+                assignees={members.map((member) => ({
+                  id: member.userId,
+                  name: member.user.name,
+                }))}
+              />
+            )}
+
+            {canDeleteTask && (
+              <DeleteTaskDialog
+                projectId={project.id}
+                taskId={task.id}
+                taskNumber={`${project.key}-${task.number}`}
+                taskTitle={task.title}
+              />
+            )}
+          </>
         ) : undefined
       }
     />

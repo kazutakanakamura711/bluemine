@@ -42,6 +42,8 @@ Task作成は、`tasks/new/page.tsx`でProject・本人・担当者候補を取�
 
 Task編集は同じ詳細URL上のSheetで行う。`tasks/[taskId]/page.tsx`は未アーカイブのowner・memberの場合だけ既存のメンバー取得処理を呼び、User IDと名前だけを担当者候補として渡す。`TaskDetail`は`headerAction`の配置を担当し、Client Componentの`EditTaskSheet`は開閉と外枠、`EditTaskForm`は入力欄とエラー表示を担当する。`tasks/[taskId]/_lib/use-edit-task-form.ts`の`useEditTaskForm`が保存済みTaskを初期値にしたReact Hook Form・Zodの入力管理・検証、変更項目だけのPATCH、二重送信防止、送信状態、APIエラーを担当する。成功時は渡された`onSuccess`でSheetを閉じ、`router.refresh()`で詳細を再取得する。フォームは`onBusyChange`で処理中の状態をSheetへ伝え、Sheetはキャンセル・閉じるボタン・Escape・背景の選択による閉鎖を防ぐ。失敗時は入力とSheetを保持し、閉じる操作と再試行を許可する。閉じた時点でフォームをアンマウントし、再表示時に最新のTaskから初期化する。
 
+Task削除UIでは、`tasks/[taskId]/page.tsx`が未アーカイブのownerにだけ`DeleteTaskDialog`を渡す。Client ComponentのDialogは入口・確認画面の表示とフォーカスを担当し、`tasks/[taskId]/_lib/use-delete-task-dialog.ts`のHookが開閉・二重送信防止・送信状態・エラー・成功後の一覧への移動を担当する。ブラウザ用セッションとDELETE APIへの接続は`tasks/[taskId]/_lib/delete-task.ts`が担当する。成功204では本文を読まず、API側の認可・アーカイブ状態とTaskの所属確認も維持する。
+
 作成・編集で同じルールを使うZodスキーマと型は`src/features/tasks/schema/task-form.ts`、日付入力は`src/features/tasks/components/task-date-input.tsx`で共有し、対応するテストも同じ場所に置く。画面全体のフォームは、初期値・配置・送信処理の違いがあるため各routeに残す。
 
 ログアウト操作のテストは `(app)/_components/logout-button.test.tsx` に置く。
@@ -216,6 +218,9 @@ Controllerの同じファイル内の`toTaskResponse()`で一覧・詳細・作�
 
 Task更新は`PATCH /api/projects/:projectId/tasks/:taskId`を同じ構成へ追加する。`UpdateTaskDto`は7項目を任意入力とし、省略とnullを区別して形式を検証する。作成・更新の日付形式は共通の`TaskDateConstraint`で検証する。Serviceは本人の参加資格・role、空の更新内容、文字列の正規化と日付変換を扱い、指定項目だけをRepositoryへ渡す。
 Repositoryは同じProject行のロック後に最新の本人・アーカイブ状態・Taskの所属・担当者を確認し、最新Taskと指定日付を合わせて前後関係を検証する。同値なら保存せず、値が変わる場合は指定された7項目だけを更新する。判定結果はstatusでServiceへ返してHTTP例外へ変換し、Controllerは共通の`toTaskResponse()`で200の単一Taskを返す。
+
+Task削除は`DELETE /api/projects/:projectId/tasks/:taskId`を同じ構成に追加する。ControllerはAuthGuardを使い、URLの2つのIDと認証済みUserのIDをServiceに渡し、成功時は本文のない204を返す。Serviceは本人の参加情報・owner権限を確認し、Repositoryの判定結果をHTTP例外へ変換する。
+RepositoryはtransactionでProject行をロックし、最新の本人の参加情報・owner権限、アーカイブ状態、Taskの所属・存在を確認した後、2つのIDで限定してTaskを削除する。Projectの採番カウンターや他のデータは更新しない。入力DTO・schema・migrationの追加は不要である。
 
 メンバー削除の `ProjectsRepository.deleteProjectMember()` は、Project行をロックし、アーカイブ・対象の所属・owner保護を再確認してから、対象Userの担当Taskを `projectId` と `assigneeId` で限定して未担当へ戻し、参加情報を削除する。担当解除と参加情報削除は同じtransactionに含める。Serviceは従来の認証済み本人のmembership・owner権限の確認を担当し、Controllerの204応答は維持する。
 Projectを返すControllerの各操作では、同じファイル内の `toProjectResponse()` で公開項目と日時の文字列変換を揃える。採番用の `lastTaskNumber` などDBの内部カラムをそのまま返さず、詳細取得だけ本人の `currentUserRole` を追加する。

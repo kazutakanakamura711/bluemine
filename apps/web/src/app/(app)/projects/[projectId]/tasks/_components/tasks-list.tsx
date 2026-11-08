@@ -142,19 +142,23 @@ export function TaskList({ tasks, projectKey, headerAction }: TasksListProps) {
               </TableHeader>
               <TableBody>
                 {tasks.map((task) => (
-                  <TableRow key={task.id} className="border-slate-100">
+                  <TableRow
+                    key={task.id}
+                    className="relative cursor-pointer border-slate-100"
+                  >
                     <TableCell className="px-3 py-4 font-mono text-xs leading-5 whitespace-normal wrap-anywhere">
                       <Link
                         href={`/projects/${encodeURIComponent(task.projectId)}/tasks/${encodeURIComponent(task.id)}`}
-                        className="rounded-sm text-indigo-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                        className="relative z-10 rounded-sm text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                       >
                         {projectKey}-{task.number}
                       </Link>
                     </TableCell>
+                    {/* タイトルのリンク領域を行全体に広げ、番号リンクはその上に重ねる。 */}
                     <TableCell className="whitespace-normal px-3 py-4 leading-6 wrap-anywhere">
                       <Link
                         href={`/projects/${encodeURIComponent(task.projectId)}/tasks/${encodeURIComponent(task.id)}`}
-                        className="rounded-sm hover:text-indigo-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                        className="rounded-sm after:absolute after:inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                       >
                         {task.title}
                       </Link>
@@ -192,20 +196,21 @@ export function TaskList({ tasks, projectKey, headerAction }: TasksListProps) {
             {tasks.map((task) => (
               <li
                 key={task.id}
-                className="min-w-0 rounded-sm border border-slate-200 bg-background p-3 shadow-sm"
+                className="relative min-w-0 cursor-pointer rounded-sm border border-slate-200 bg-background p-3 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/projects/${encodeURIComponent(task.projectId)}/tasks/${encodeURIComponent(task.id)}`}
-                      className="rounded-sm font-mono text-xs text-indigo-600 wrap-anywhere hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                      className="relative z-10 rounded-sm font-mono text-xs text-indigo-600 wrap-anywhere focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                     >
                       {projectKey}-{task.number}
                     </Link>
+                    {/* PCと同様に、タイトルのリンク領域をカード全体に広げる。 */}
                     <h3 className="mt-1 text-sm font-medium leading-5 wrap-anywhere">
                       <Link
                         href={`/projects/${encodeURIComponent(task.projectId)}/tasks/${encodeURIComponent(task.id)}`}
-                        className="rounded-sm hover:text-indigo-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+                        className="rounded-sm after:absolute after:inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
                       >
                         {task.title}
                       </Link>

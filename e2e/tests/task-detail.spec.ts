@@ -60,6 +60,7 @@ test('PC・モバイルのタスク一覧から詳細を開き、再読み込み
       include: { tasks: true },
     });
     const task = project.tasks.find((task) => task.title === title)!;
+    const otherTask = project.tasks.find((task) => task.number === 2)!;
     const tasksPath = `/projects/${project.id}/tasks`;
     const detailPath = `${tasksPath}/${task.id}`;
 
@@ -152,6 +153,31 @@ test('PC・モバイルのタスク一覧から詳細を開き、再読み込み
         .click();
       await expect(page).toHaveURL(`http://localhost:3100${tasksPath}`);
       await expect(taskLink).toBeVisible();
+
+      // 番号・タイトル以外の場所でも、選択した行の詳細を開ける。
+      const otherItem =
+        viewport.width >= 768
+          ? list.getByRole('row').filter({ hasText: otherTask.title })
+          : list.getByRole('listitem').filter({ hasText: otherTask.title });
+      const clickTarget =
+        viewport.width >= 768
+          ? otherItem.getByRole('cell').nth(2)
+          : otherItem.getByText('報告者', { exact: true });
+      await clickTarget.scrollIntoViewIfNeeded();
+      const box = await clickTarget.boundingBox();
+      expect(box).not.toBeNull();
+      await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await expect(page).toHaveURL(
+        `http://localhost:3100${tasksPath}/${otherTask.id}`,
+      );
+      await expect(
+        page.getByRole('heading', { name: otherTask.title, exact: true }),
+      ).toBeVisible();
+
+      await page.goto(tasksPath);
+      await numberLink.focus();
+      await page.keyboard.press('Enter');
+      await expect(page).toHaveURL(`http://localhost:3100${detailPath}`);
     }
   } finally {
     try {

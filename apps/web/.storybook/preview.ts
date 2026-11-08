@@ -9,6 +9,9 @@ sb.mock('../src/app/(app)/projects/[projectId]/tasks/new/_lib/create-task.ts');
 sb.mock(
   '../src/app/(app)/projects/[projectId]/tasks/[taskId]/_lib/update-task.ts',
 );
+sb.mock(
+  '../src/app/(app)/projects/[projectId]/tasks/[taskId]/_lib/delete-task.ts',
+);
 
 const preview: Preview = {
   parameters: {

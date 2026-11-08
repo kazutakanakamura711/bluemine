@@ -32,6 +32,12 @@ type UpdateTaskData = {
   dueDate?: Date | null;
 };
 
+type DeleteTaskData = {
+  projectId: string;
+  taskId: string;
+  userId: string;
+};
+
 @Injectable()
 export class TasksRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -284,6 +290,53 @@ export class TasksRepository {
       });
 
       return { status: 'updated' as const, task: updatedTask };
+    });
+  }
+
+  delete(data: DeleteTaskData) {
+    return this.prisma.$transaction(async (tx) => {
+      // メンバー削除・role変更・アーカイブと、同じProjectの保存順を揃える。
+      const [project] = await tx.$queryRaw<{ isArchived: boolean }[]>`
+        SELECT is_archived AS "isArchived"
+        FROM projects
+        WHERE id = ${data.projectId}
+        FOR UPDATE
+      `;
+      if (!project) {
+        return { status: 'project_not_found' as const };
+      }
+
+      // userIdは認証済みの実行者。報告者とは分け、ロック後の参加資格で判断する。
+      const member = await tx.projectMember.findUnique({
+        where: {
+          projectId_userId: {
+            projectId: data.projectId,
+            userId: data.userId,
+          },
+        },
+      });
+      if (!member) {
+        return { status: 'project_not_found' as const };
+      }
+      if (member.role !== ProjectMemberRole.owner) {
+        return { status: 'forbidden' as const };
+      }
+      if (project.isArchived) {
+        return { status: 'project_archived' as const };
+      }
+
+      const task = await tx.task.findUnique({
+        where: { id: data.taskId, projectId: data.projectId },
+      });
+      if (!task) {
+        return { status: 'task_not_found' as const };
+      }
+
+      await tx.task.delete({
+        where: { id: data.taskId, projectId: data.projectId },
+      });
+
+      return { status: 'deleted' as const };
     });
   }
 }

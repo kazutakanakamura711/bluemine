@@ -135,8 +135,17 @@ describe('TaskDetailPage', () => {
           screen.getByRole('button', { name: '編集' }),
         ).toBeInTheDocument();
       }
+      if (currentUserRole === ProjectRole.Owner) {
+        expect(
+          screen.getByRole('button', { name: '削除' }),
+        ).toBeInTheDocument();
+      } else {
+        expect(
+          screen.queryByRole('button', { name: '削除' }),
+        ).not.toBeInTheDocument();
+      }
       expect(
-        screen.queryByRole('button', { name: /削除|保存/ }),
+        screen.queryByRole('button', { name: '保存' }),
       ).not.toBeInTheDocument();
     },
   );
@@ -289,6 +298,15 @@ describe('TaskDetailPage', () => {
       } else {
         expect(button).not.toBeInTheDocument();
         expect(mocks.getProjectMembers).not.toHaveBeenCalled();
+      }
+      if (currentUserRole === ProjectRole.Owner && !isArchived) {
+        expect(
+          screen.getByRole('button', { name: '削除' }),
+        ).toBeInTheDocument();
+      } else {
+        expect(
+          screen.queryByRole('button', { name: '削除' }),
+        ).not.toBeInTheDocument();
       }
     },
   );
