@@ -65,15 +65,15 @@ Frontend は Next.js App Router を使う。`page.tsx` と `layout.tsx` は Serv
 
 | 役割                  | model / effort       | 主な用途                          |
 | --------------------- | -------------------- | --------------------------------- |
-| Parent / integration  | GPT-5.6 Sol / high   | 計画、仕様判断、統合、最終確認    |
-| Frontend / Backend    | GPT-5.6 Terra / high | Next.js、NestJS、Prisma の実装    |
-| Unit / component test | GPT-5.6 Luna / high  | Vitest の局所テスト               |
-| Integration / E2E     | GPT-5.6 Terra / high | Supertest、PostgreSQL、Playwright |
-| Architecture review   | GPT-5.6 Sol / high   | 設計・認可・migration の確認      |
+| Parent / integration  | GPT-6.1 Sol / high   | 計画、仕様判断、統合、最終確認    |
+| Frontend / Backend    | GPT-6.1 Terra / high | Next.js、NestJS、Prisma の実装    |
+| Unit / component test | GPT-6 Luna / high    | Vitest の局所テスト               |
+| Integration / E2E     | GPT-6.1 Terra / high | Supertest、PostgreSQL、Playwright |
+| Architecture review   | GPT-6.1 Sol / high   | 設計・認可・migration の確認      |
 
 ### GPT-6 Astra の利用条件
 
-まず GPT-5.6 Sol / high で、論点を限定して調査・review・障害解析する。Astra は、Sol でも安全な結論が出ない場合に限る。
+まず GPT-6.1 Sol / high で、論点を限定して調査・review・障害解析する。Astra は、Sol でも安全な結論が出ない場合に限る。
 
 - 対象は、未解決の認可・セキュリティ・transaction・migration・複数層にまたがる再現困難な障害である。
 - routine CRUD、UI調整、通常のコードレビューには使わない。
