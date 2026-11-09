@@ -42,6 +42,10 @@ Task作成は、`tasks/new/page.tsx`でProject・本人・担当者候補を取�
 
 Task編集は同じ詳細URL上のSheetで行う。`tasks/[taskId]/page.tsx`は未アーカイブのowner・memberの場合だけ既存のメンバー取得処理を呼び、User IDと名前だけを担当者候補として渡す。`TaskDetail`は`headerAction`の配置を担当し、Client Componentの`EditTaskSheet`は開閉と外枠、`EditTaskForm`は入力欄とエラー表示を担当する。`tasks/[taskId]/_lib/use-edit-task-form.ts`の`useEditTaskForm`が保存済みTaskを初期値にしたReact Hook Form・Zodの入力管理・検証、変更項目だけのPATCH、二重送信防止、送信状態、APIエラーを担当する。成功時は渡された`onSuccess`でSheetを閉じ、`router.refresh()`で詳細を再取得する。フォームは`onBusyChange`で処理中の状態をSheetへ伝え、Sheetはキャンセル・閉じるボタン・Escape・背景の選択による閉鎖を防ぐ。失敗時は入力とSheetを保持し、閉じる操作と再試行を許可する。閉じた時点でフォームをアンマウントし、再表示時に最新のTaskから初期化する。
 
+詳細画面のステータス変更は、`tasks/[taskId]/page.tsx`が既存の編集可否を判定し、未アーカイブProjectのowner・memberにだけ`TaskStatusEditor`を渡す。`TaskDetail`は`statusAction`を属性欄に配置し、渡されない場合は`TaskStatusBadge`を表示する。`TaskStatusEditor`はClient Componentとしてプルダウンの開閉、保存中、エラー、重複送信防止を管理し、`tasks/[taskId]/_lib/update-task.ts`の`updateTask()`を直接呼んで選択した`status`だけをPATCHする。成功時は返却Taskのステータス・更新日時を保持し、`router.refresh()`で詳細を再取得する。保存APIの返却値とServer Componentから渡されるTaskの更新日時を比較し、再取得が届くまで新しい方のステータスを表示する。失敗時は保存済みの値を保ち、エラーを表示して再試行を許可する。
+
+詳細画面の担当者変更も、`tasks/[taskId]/page.tsx`が同じ編集可否を判定し、取得済みのProjectメンバー候補とTaskの担当者を`TaskAssigneeEditor`へ渡す。`TaskDetail`は`assigneeAction`を属性欄に配置し、渡されない場合は担当者名または「未担当」を表示する。`TaskAssigneeEditor`はClient Componentとしてプルダウンの開閉、保存中、エラー、重複送信防止を管理し、`updateTask()`へ`assigneeId`だけを渡す。「未担当」は`null`で送信する。現在の担当者が取得済みの候補にいない場合は表示用に選択肢へ含める。同じ担当者を選び直した場合は更新APIを呼ばない。成功時は返却Taskの担当者・更新日時を保持し、`router.refresh()`で詳細を再取得する。Taskの更新日時を比べ、再取得が届くまで新しい方の担当者を表示する。失敗時は保存済みの担当者を保ち、エラーを表示して再試行を許可する。
+
 Task削除UIでは、`tasks/[taskId]/page.tsx`が未アーカイブのownerにだけ`DeleteTaskDialog`を渡す。Client ComponentのDialogは入口・確認画面の表示とフォーカスを担当し、`tasks/[taskId]/_lib/use-delete-task-dialog.ts`のHookが開閉・二重送信防止・送信状態・エラー・成功後の一覧への移動を担当する。ブラウザ用セッションとDELETE APIへの接続は`tasks/[taskId]/_lib/delete-task.ts`が担当する。成功204では本文を読まず、API側の認可・アーカイブ状態とTaskの所属確認も維持する。
 
 作成・編集で同じルールを使うZodスキーマと型は`src/features/tasks/schema/task-form.ts`、日付入力は`src/features/tasks/components/task-date-input.tsx`で共有し、対応するテストも同じ場所に置く。画面全体のフォームは、初期値・配置・送信処理の違いがあるため各routeに残す。
@@ -70,16 +74,17 @@ API の共通 AuthGuard が `getUser(token)` で本人を確認した後、AuthS
 アプリ側 User の作成・更新時にメールと名前を同期し、名前が未設定・空白・文字列以外なら `null` にする。
 `user_metadata` は表示用の名前にだけ使い、認可判断には使わない。
 
-メール確認後の初回表示では、複数の API が同じ User を並行して保存する。
+ログイン後の初回表示では、複数の API が同じ User を並行して保存する。
 AuthRepository の upsert が一意制約エラー（P2002）になった場合は、同じ ID・メールの行が既にあることを確認し、その行を1回だけ更新する。
 別 ID とのメール競合やその他の DB エラーは引き継ぎ、メールだけを根拠に別の User を本人として扱わない。
 
 メール確認の Route Handler は `(auth)/confirm/route.ts` に置く。Route Group の名前は URL に含まれないため、URL は `/confirm` となる。
-サーバー用クライアントの `verifyOtp()` で `token_hash` と `type=email` を検証し、発行されたセッションを Cookie に保存する。
-成功時は `/projects`、検証エラー時は `/login?error=confirmation_failed` にリダイレクトする。
+`src/lib/supabase/confirmation.ts` がリクエストごとに作る確認専用クライアントの `verifyOtp()` で `token_hash` と `type=email` を検証する。
+確認専用クライアントは既存 Cookie を参照せず、セッションの永続化・自動更新・URLからの取り込みを無効にする。確認時に Supabase がセッションを発行しても Cookie に保存せず、既存のログイン状態を変更しない。
+成功時は `/login?confirmation=success`、検証エラー時は `/login?error=confirmation_failed` にリダイレクトする。確認したアカウントはメール・パスワードを使って明示的にログインする。
 確認情報がない場合や `type` が不正な場合は、Supabase を呼ばず `400` の JSON を返す。
 リダイレクト先には元の確認情報を引き継がず、応答には `Cache-Control: private, no-store` と `Referrer-Policy: no-referrer` を付ける。
-確認後は Project API の AuthGuard で本人を確認し、アプリ側 User を取得または初回作成する。
+ログイン時は `/api/auth/me` の AuthGuard で本人を確認し、アプリ側 User を取得または初回作成する。
 
 `(app)/layout.tsx` の Server Component `ProjectsNavigationContainer` が Cookie のセッションから token を取得し、
 共通の `src/lib/auth/get-current-user.ts` で本人情報を取得する。ナビゲーション用の Project 一覧と本人情報は並行して取得する。

@@ -6,12 +6,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 type LoginPageProps = {
   searchParams: Promise<{
     error?: string | string[];
+    confirmation?: string | string[];
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { error } = await searchParams;
+  const { error, confirmation } = await searchParams;
   const isConfirmationFailed = error === 'confirmation_failed';
+  const isConfirmationSucceeded =
+    confirmation === 'success' && !isConfirmationFailed;
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-slate-50 px-4 py-8 sm:px-6">
@@ -33,6 +36,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             プロジェクトとタスクを一つの場所で管理
           </p>
         </header>
+
+        {isConfirmationSucceeded && (
+          <Alert role="status" className="mb-4 border-indigo-200 bg-indigo-50">
+            <AlertDescription className="text-indigo-700">
+              メールアドレスの確認が完了しました。
+              ログイン中のアカウントは変更されていません。
+              確認したアカウントを利用する場合は、ログインしてください。
+            </AlertDescription>
+          </Alert>
+        )}
 
         {isConfirmationFailed && (
           <Alert

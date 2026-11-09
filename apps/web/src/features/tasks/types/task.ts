@@ -1,7 +1,7 @@
 import type { TaskPriority } from './task-priority';
 import type { TaskStatus } from './task-status';
 
-type TaskUser = {
+export type TaskUser = {
   id: string;
   name: string | null;
 };

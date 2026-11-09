@@ -7,6 +7,8 @@ import { getTask } from './_lib/get-task';
 import { EditTaskSheet } from './_components/edit-task-sheet';
 import { ProjectRole } from '@/features/projects/types/project-role';
 import { DeleteTaskDialog } from './_components/delete-task-dialog';
+import { TaskStatusEditor } from './_components/task-status-editor';
+import { TaskAssigneeEditor } from './_components/task-assignee-editor';
 
 type TaskDetailPageProps = {
   params: Promise<{ projectId: string; taskId: string }>;
@@ -44,6 +46,30 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
       projectKey={project.key}
       projectName={project.name}
       isArchived={project.isArchived}
+      statusAction={
+        canEditTask ? (
+          <TaskStatusEditor
+            projectId={task.projectId}
+            taskId={task.id}
+            status={task.status}
+            updatedAt={task.updatedAt}
+          />
+        ) : undefined
+      }
+      assigneeAction={
+        canEditTask ? (
+          <TaskAssigneeEditor
+            projectId={task.projectId}
+            taskId={task.id}
+            assignee={task.assignee}
+            assignees={members.map((member) => ({
+              id: member.userId,
+              name: member.user.name,
+            }))}
+            updatedAt={task.updatedAt}
+          />
+        ) : undefined
+      }
       headerAction={
         canEditTask || canDeleteTask ? (
           <>

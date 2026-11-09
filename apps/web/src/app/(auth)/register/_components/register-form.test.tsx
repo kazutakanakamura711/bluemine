@@ -149,7 +149,7 @@ describe('RegisterForm', () => {
     await user.click(screen.getByRole('button', { name: 'アカウントを作成' }));
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      '登録を受け付けました。確認メールのリンクを開くと、メール確認が完了し、自動的にアプリへ進みます。',
+      '登録を受け付けました。確認メールのリンクを開いてメールアドレスを確認し、ログインしてください。',
     );
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });

@@ -22,6 +22,8 @@ type TaskDetailProps = {
   projectName: string;
   isArchived: boolean;
   headerAction?: React.ReactNode;
+  statusAction?: React.ReactNode;
+  assigneeAction?: React.ReactNode;
 };
 
 function TaskDate({ value }: { value: string | null }) {
@@ -39,6 +41,8 @@ export function TaskDetail({
   projectName,
   isArchived,
   headerAction,
+  statusAction,
+  assigneeAction,
 }: TaskDetailProps) {
   const tasksPath = `/projects/${encodeURIComponent(task.projectId)}/tasks`;
 
@@ -123,7 +127,7 @@ export function TaskDetail({
             <div>
               <dt className="text-xs text-muted-foreground">ステータス</dt>
               <dd className="mt-1">
-                <TaskStatusBadge status={task.status} />
+                {statusAction ?? <TaskStatusBadge status={task.status} />}
               </dd>
             </div>
             <div>
@@ -138,9 +142,10 @@ export function TaskDetail({
             <div>
               <dt className="text-xs text-muted-foreground">担当者</dt>
               <dd className="mt-1 wrap-anywhere">
-                {task.assignee
-                  ? task.assignee.name?.trim() || '名前未設定'
-                  : '未担当'}
+                {assigneeAction ??
+                  (task.assignee
+                    ? task.assignee.name?.trim() || '名前未設定'
+                    : '未担当')}
               </dd>
             </div>
             <div>

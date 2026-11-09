@@ -290,13 +290,23 @@ describe('TaskDetailPage', () => {
       });
       await renderPage();
       const button = screen.queryByRole('button', { name: '編集' });
+      const statusEditor = screen.queryByRole('combobox', {
+        name: 'ステータス',
+      });
+      const assigneeEditor = screen.queryByRole('combobox', {
+        name: '担当者',
+      });
       if (canEdit) {
         expect(button).toBeInTheDocument();
+        expect(statusEditor).toHaveTextContent('進行中');
+        expect(assigneeEditor).toHaveTextContent('山田太郎');
         expect(mocks.getProjectMembers).toHaveBeenCalledExactlyOnceWith(
           project.id,
         );
       } else {
         expect(button).not.toBeInTheDocument();
+        expect(statusEditor).not.toBeInTheDocument();
+        expect(assigneeEditor).not.toBeInTheDocument();
         expect(mocks.getProjectMembers).not.toHaveBeenCalled();
       }
       if (currentUserRole === ProjectRole.Owner && !isArchived) {
@@ -310,6 +320,36 @@ describe('TaskDetailPage', () => {
       }
     },
   );
+
+  it('ステータスの選択肢を表示する', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    const editor = screen.getByRole('combobox', { name: 'ステータス' });
+    await user.click(editor);
+    expect(
+      await screen.findByRole('option', { name: '未着手' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '進行中' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: '完了' })).toBeInTheDocument();
+  });
+
+  it('担当者の選択肢に未担当・現在の担当者・Projectメンバーを表示する', async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getByRole('combobox', { name: '担当者' }));
+    expect(
+      await screen.findByRole('option', { name: '未担当' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: '山田太郎' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: '担当者候補' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('private@example.test')).not.toBeInTheDocument();
+  });
 
   it('候補の名前だけを表示し、参加情報IDではなくUser IDで選択する', async () => {
     const user = userEvent.setup();

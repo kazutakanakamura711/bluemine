@@ -41,12 +41,13 @@ pnpm dev:web
 
 `@supabase/supabase-js` と `@supabase/ssr` を使い、セッションを Cookie に保存します。
 
-| ファイル                     | 役割                                                                                            |
-| ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| `src/lib/supabase/client.ts` | Client Component で使うブラウザ用クライアント                                                   |
-| `src/lib/supabase/server.ts` | Server Component / Server Action / Route Handler で、そのリクエストの Cookie を使うクライアント |
-| `src/lib/supabase/proxy.ts`  | セッションの確認・更新と、未ログイン時の Project 画面からログイン画面への移動を行う             |
-| `src/proxy.ts`               | Next.js がページ表示前に呼ぶ入口。画像・静的ファイルは対象外                                    |
+| ファイル                           | 役割                                                                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `src/lib/supabase/client.ts`       | Client Component で使うブラウザ用クライアント                                                   |
+| `src/lib/supabase/server.ts`       | Server Component / Server Action / Route Handler で、そのリクエストの Cookie を使うクライアント |
+| `src/lib/supabase/confirmation.ts` | メール確認だけに使う、Cookie を読み書きしないクライアント                                       |
+| `src/lib/supabase/proxy.ts`        | セッションの確認・更新と、未ログイン時の Project 画面からログイン画面への移動を行う             |
+| `src/proxy.ts`                     | Next.js がページ表示前に呼ぶ入口。画像・静的ファイルは対象外                                    |
 
 Server Component はレスポンスの Cookie を書けないため、手前の Proxy で更新します。
 SDK が更新時に渡すキャッシュ制御ヘッダーもレスポンスへ反映します。
@@ -60,7 +61,9 @@ NestJS 側でも受け取った Bearer token を検証します。
 `/register` で名前・メールアドレス・パスワードを登録します。確認用パスワードは画面内で一致を検証し、Supabase には送りません。
 名前は Supabase Auth の `user_metadata.name` に保存し、認証済み API の共通 AuthGuard を通る際にアプリ側 User の `name` へ同期します。
 確認メールのリンクは `/confirm?token_hash=...&type=email` です。
-`src/app/(auth)/confirm/route.ts` が `verifyOtp()` で検証し、サーバー用 SDK がセッションを Cookie に保存して `/projects` へリダイレクトします。
+`src/app/(auth)/confirm/route.ts` が確認専用クライアントの `verifyOtp()` で検証します。
+確認時に発行されたセッションは Cookie に保存せず、既存のログイン状態を維持したまま `/login?confirmation=success` へ移動します。
+確認したアカウントを利用するには、メールアドレスとパスワードでログインします。
 検証エラーでは `/login?error=confirmation_failed` へ移動し、ログイン画面に固定の案内を表示します。
 確認情報の不足や `type` の不正は、Supabase を呼ばず `400` を返します。
 
