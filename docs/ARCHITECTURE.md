@@ -74,16 +74,17 @@ API の共通 AuthGuard が `getUser(token)` で本人を確認した後、AuthS
 アプリ側 User の作成・更新時にメールと名前を同期し、名前が未設定・空白・文字列以外なら `null` にする。
 `user_metadata` は表示用の名前にだけ使い、認可判断には使わない。
 
-メール確認後の初回表示では、複数の API が同じ User を並行して保存する。
+ログイン後の初回表示では、複数の API が同じ User を並行して保存する。
 AuthRepository の upsert が一意制約エラー（P2002）になった場合は、同じ ID・メールの行が既にあることを確認し、その行を1回だけ更新する。
 別 ID とのメール競合やその他の DB エラーは引き継ぎ、メールだけを根拠に別の User を本人として扱わない。
 
 メール確認の Route Handler は `(auth)/confirm/route.ts` に置く。Route Group の名前は URL に含まれないため、URL は `/confirm` となる。
-サーバー用クライアントの `verifyOtp()` で `token_hash` と `type=email` を検証し、発行されたセッションを Cookie に保存する。
-成功時は `/projects`、検証エラー時は `/login?error=confirmation_failed` にリダイレクトする。
+`src/lib/supabase/confirmation.ts` がリクエストごとに作る確認専用クライアントの `verifyOtp()` で `token_hash` と `type=email` を検証する。
+確認専用クライアントは既存 Cookie を参照せず、セッションの永続化・自動更新・URLからの取り込みを無効にする。確認時に Supabase がセッションを発行しても Cookie に保存せず、既存のログイン状態を変更しない。
+成功時は `/login?confirmation=success`、検証エラー時は `/login?error=confirmation_failed` にリダイレクトする。確認したアカウントはメール・パスワードを使って明示的にログインする。
 確認情報がない場合や `type` が不正な場合は、Supabase を呼ばず `400` の JSON を返す。
 リダイレクト先には元の確認情報を引き継がず、応答には `Cache-Control: private, no-store` と `Referrer-Policy: no-referrer` を付ける。
-確認後は Project API の AuthGuard で本人を確認し、アプリ側 User を取得または初回作成する。
+ログイン時は `/api/auth/me` の AuthGuard で本人を確認し、アプリ側 User を取得または初回作成する。
 
 `(app)/layout.tsx` の Server Component `ProjectsNavigationContainer` が Cookie のセッションから token を取得し、
 共通の `src/lib/auth/get-current-user.ts` で本人情報を取得する。ナビゲーション用の Project 一覧と本人情報は並行して取得する。

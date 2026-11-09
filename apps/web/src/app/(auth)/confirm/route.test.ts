@@ -6,21 +6,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GET } from './route';
 
 const mocks = vi.hoisted(() => ({
-  createClient: vi.fn(),
+  createConfirmationClient: vi.fn(),
   verifyOtp: vi.fn(),
 }));
 
 // Supabase には通信せず、確認の成功・失敗を再現する。
 // NextRequest と NextResponse は実際の Next.js のものを使う。
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: mocks.createClient,
+vi.mock('@/lib/supabase/confirmation', () => ({
+  createConfirmationClient: mocks.createConfirmationClient,
 }));
 
 const tokenHash = 'test-confirmation-token-hash';
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.createClient.mockResolvedValue({
+  mocks.createConfirmationClient.mockReturnValue({
     auth: { verifyOtp: mocks.verifyOtp },
   });
   mocks.verifyOtp.mockResolvedValue({
@@ -30,14 +30,14 @@ beforeEach(() => {
 });
 
 describe('GET /confirm のメール確認', () => {
-  it('サーバー用クライアントで確認情報を検証し、成功したらプロジェクト一覧へ移動する', async () => {
+  it('確認専用クライアントで検証し、成功したらログイン画面へ移動する', async () => {
     const request = new NextRequest(
       `http://localhost:3000/confirm?token_hash=${tokenHash}&type=email`,
     );
 
     const response = await GET(request);
 
-    expect(mocks.createClient).toHaveBeenCalledOnce();
+    expect(mocks.createConfirmationClient).toHaveBeenCalledOnce();
     expect(mocks.verifyOtp).toHaveBeenCalledOnce();
     expect(mocks.verifyOtp).toHaveBeenCalledWith({
       token_hash: tokenHash,
@@ -45,9 +45,30 @@ describe('GET /confirm のメール確認', () => {
     });
     expect(response.status).toBe(307);
     expect(response.headers.get('Location')).toBe(
-      'http://localhost:3000/projects',
+      'http://localhost:3000/login?confirmation=success',
     );
   });
+
+  it.each([
+    { name: 'Cookie がない', cookie: '' },
+    {
+      name: '既存のセッション Cookie がある',
+      cookie: 'existing-session=original',
+    },
+  ])(
+    '$name場合も確認結果のセッションを Cookie に保存しない',
+    async ({ cookie }) => {
+      const request = new NextRequest(
+        `http://localhost:3000/confirm?token_hash=${tokenHash}&type=email`,
+        { headers: { cookie } },
+      );
+
+      const response = await GET(request);
+
+      expect(mocks.verifyOtp).toHaveBeenCalledOnce();
+      expect(response.headers.get('set-cookie')).toBeNull();
+    },
+  );
 
   it('期限切れ・使用済みなどで検証に失敗したら、エラーの目印付きでログイン画面へ移動する', async () => {
     mocks.verifyOtp.mockResolvedValue({
@@ -93,12 +114,16 @@ describe('GET /confirm のメール確認', () => {
     await expect(response.json()).resolves.toEqual({
       message: '確認リンクが無効です。',
     });
-    expect(mocks.createClient).not.toHaveBeenCalled();
+    expect(mocks.createConfirmationClient).not.toHaveBeenCalled();
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
   });
 
   it.each([
-    { result: '成功', error: null, redirectPath: '/projects' },
+    {
+      result: '成功',
+      error: null,
+      redirectPath: '/login?confirmation=success',
+    },
     {
       result: '失敗',
       error: { code: 'otp_expired' },

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createConfirmationClient } from '@/lib/supabase/confirmation';
 
 export async function GET(request: NextRequest) {
   // URL の「?」以降にある情報を取り出す。
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
+  const supabase = createConfirmationClient();
 
   // Supabase が確認情報を検証し、成功するとセッションを発行する。
   const { error } = await supabase.auth.verifyOtp({
@@ -22,8 +22,10 @@ export async function GET(request: NextRequest) {
     type,
   });
 
-  // 確認の結果に応じて、移動先を決める。
-  const redirectPath = error ? '/login?error=confirmation_failed' : '/projects';
+  // 確認時に発行されたセッションは Cookie に保存せず、ログイン画面へ進む。
+  const redirectPath = error
+    ? '/login?error=confirmation_failed'
+    : '/login?confirmation=success';
 
   // 新しい URL を作るため、元の token_hash は引き継がない。
   return NextResponse.redirect(new URL(redirectPath, request.url), {
