@@ -50,6 +50,9 @@ pnpm test:browser e2e/tests/update-task.spec.ts --headed
 画面やAPIを変更した後は `pnpm test:browser:prepare` で専用buildを更新します。
 テストでは固定sleepを使わず、画面の状態やAPI応答を待ちます。
 
+メール確認のテストは `e2e/tests/email-confirmation.spec.ts` です。登録・確認後の手動ログイン、使用済みリンク、別ブラウザでの確認、ログイン中の別アカウントの確認リンクや無効なリンクによるセッション維持を確認します。
+メールの取得・削除とユーザーの後片付けは、専用環境の今回のテストデータに限定します。
+
 ## 結果と終了
 
 HTMLレポートを開きます。
