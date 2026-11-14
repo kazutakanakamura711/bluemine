@@ -237,6 +237,10 @@ otp_expiry = 3600
 subject = "メールアドレスの確認"
 content_path = "./supabase/templates/confirmation.html"
 
+[auth.email.template.recovery]
+subject = "パスワードの再設定"
+content_path = "./supabase/templates/recovery.html"
+
 # Use a production-ready SMTP server
 # [auth.email.smtp]
 # enabled = true

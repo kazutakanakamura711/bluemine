@@ -30,6 +30,10 @@ max_frequency = "1s"
 subject = "メールアドレスの確認"
 content_path = "./supabase/templates/confirmation.html"
 
+[auth.email.template.recovery]
+subject = "パスワードの再設定"
+content_path = "./supabase/templates/recovery.html"
+
 # テスト用メールの受信サービス
 [local_smtp]
 enabled = true
