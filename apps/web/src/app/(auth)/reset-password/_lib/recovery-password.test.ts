@@ -115,11 +115,15 @@ describe('検証した本人のパスワード保存', () => {
     },
   );
 
-  it('verifyで検証済みなら、同じリンクを再検証せず保存する', async () => {
+  it('保存前に失敗しても、検証済みのリンクを再検証せず保存する', async () => {
+    mocks.getSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: new AuthRetryableFetchError('session check failed', 0),
+    });
     const recovery = createPasswordRecovery('recovery-token');
 
-    await expect(recovery.verify(values)).resolves.toEqual({
-      status: 'verified',
+    await expect(recovery.submit(values)).resolves.toEqual({
+      status: 'update_failed',
     });
     await expect(recovery.submit(values)).resolves.toEqual({
       status: 'saved',
@@ -390,19 +394,23 @@ describe('検証した本人のパスワード保存', () => {
     expect(mocks.updateUser).toHaveBeenCalledOnce();
   });
 
-  it('検証済み状態から同時送信されても保存は1回だけにし、保存中のverifyも止める', async () => {
+  it('検証済み状態から同時送信されても保存は1回だけにする', async () => {
     const updateResponse = { data: { user }, error: null };
     const request = Promise.withResolvers<typeof updateResponse>();
+    mocks.getSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: new AuthRetryableFetchError('session check failed', 0),
+    });
     mocks.updateUser.mockReturnValueOnce(request.promise);
     const recovery = createPasswordRecovery('recovery-token');
-    await recovery.verify(values);
+    await expect(recovery.submit(values)).resolves.toEqual({
+      status: 'update_failed',
+    });
 
     const first = recovery.submit(values);
     const second = recovery.submit(values);
     await expect(second).resolves.toEqual({ status: 'in_progress' });
-    await expect(recovery.verify(values)).resolves.toEqual({
-      status: 'in_progress',
-    });
+    await vi.waitFor(() => expect(mocks.updateUser).toHaveBeenCalledOnce());
     await expect(recovery.submit(values)).resolves.toEqual({
       status: 'in_progress',
     });
@@ -482,8 +490,9 @@ describe('保存後の一時ログアウト', () => {
 
 describe('パスワード再設定リンクの検証', () => {
   it('処理を作成しただけではリンクを検証しない', () => {
-    createPasswordRecovery('recovery-token');
+    const recovery = createPasswordRecovery('recovery-token');
 
+    expect(recovery).not.toHaveProperty('verify');
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
   });
 
@@ -508,7 +517,7 @@ describe('パスワード再設定リンクの検証', () => {
     async ({ input, field, message }) => {
       const recovery = createPasswordRecovery('recovery-token');
 
-      await expect(recovery.verify(input)).resolves.toEqual({
+      await expect(recovery.submit(input)).resolves.toEqual({
         status: 'invalid_input',
         field,
         message,
@@ -521,10 +530,11 @@ describe('パスワード再設定リンクの検証', () => {
     const recovery = createPasswordRecovery('recovery-token');
 
     await expect(
-      recovery.verify({ ...values, password: 'short' }),
+      recovery.submit({ ...values, password: 'short' }),
     ).resolves.toMatchObject({ status: 'invalid_input' });
-    await expect(recovery.verify(values)).resolves.toEqual({
-      status: 'verified',
+    await expect(recovery.submit(values)).resolves.toEqual({
+      status: 'saved',
+      signOutFailed: false,
     });
     expect(mocks.verifyOtp).toHaveBeenCalledOnce();
   });
@@ -532,28 +542,34 @@ describe('パスワード再設定リンクの検証', () => {
   it('リンクの確認情報がなければSupabaseを呼ばない', async () => {
     const recovery = createPasswordRecovery('');
 
-    await expect(recovery.verify(values)).resolves.toEqual({
+    await expect(recovery.submit(values)).resolves.toEqual({
       status: 'invalid_link',
     });
     expect(mocks.verifyOtp).not.toHaveBeenCalled();
   });
 
-  it('再設定の種類で本人を検証し、同じリンクを再使用せずパスワード保存前で止める', async () => {
+  it('再設定の種類で本人を検証し、保存失敗後も同じリンクを再使用しない', async () => {
     const recovery = createPasswordRecovery('recovery-token');
-
-    await expect(recovery.verify(values)).resolves.toEqual({
-      status: 'verified',
+    mocks.updateUser.mockResolvedValueOnce({
+      data: { user: null },
+      error: new AuthApiError('rejected', 422, 'validation_failed'),
     });
-    await expect(recovery.verify(values)).resolves.toEqual({
-      status: 'verified',
+
+    await expect(recovery.submit(values)).resolves.toEqual({
+      status: 'update_failed',
+    });
+    expect(mocks.signOut).not.toHaveBeenCalled();
+    await expect(recovery.submit(values)).resolves.toEqual({
+      status: 'saved',
+      signOutFailed: false,
     });
     expect(mocks.createRecoveryClient).toHaveBeenCalledOnce();
     expect(mocks.verifyOtp).toHaveBeenCalledExactlyOnceWith({
       token_hash: 'recovery-token',
       type: 'recovery',
     });
-    expect(mocks.updateUser).not.toHaveBeenCalled();
-    expect(mocks.signOut).not.toHaveBeenCalled();
+    expect(mocks.updateUser).toHaveBeenCalledTimes(2);
+    expect(mocks.signOut).toHaveBeenCalledOnce();
   });
 
   it('期限切れ・無効・使用済みを表す応答なら、同じリンクを再検証しない', async () => {
@@ -563,10 +579,10 @@ describe('パスワード再設定リンクの検証', () => {
     });
     const recovery = createPasswordRecovery('recovery-token');
 
-    await expect(recovery.verify(values)).resolves.toEqual({
+    await expect(recovery.submit(values)).resolves.toEqual({
       status: 'invalid_link',
     });
-    await expect(recovery.verify(values)).resolves.toEqual({
+    await expect(recovery.submit(values)).resolves.toEqual({
       status: 'invalid_link',
     });
     expect(mocks.verifyOtp).toHaveBeenCalledOnce();
@@ -583,10 +599,10 @@ describe('パスワード再設定リンクの検証', () => {
     });
     const recovery = createPasswordRecovery('recovery-token');
 
-    await expect(recovery.verify(values)).resolves.toEqual({
+    await expect(recovery.submit(values)).resolves.toEqual({
       status: 'verification_uncertain',
     });
-    await expect(recovery.verify(values)).resolves.toEqual({
+    await expect(recovery.submit(values)).resolves.toEqual({
       status: 'verification_uncertain',
     });
     expect(mocks.verifyOtp).toHaveBeenCalledOnce();
@@ -596,10 +612,10 @@ describe('パスワード再設定リンクの検証', () => {
     mocks.verifyOtp.mockRejectedValue(new TypeError('network failure'));
     const recovery = createPasswordRecovery('recovery-token');
 
-    await expect(recovery.verify(values)).resolves.toEqual({
+    await expect(recovery.submit(values)).resolves.toEqual({
       status: 'verification_uncertain',
     });
-    await expect(recovery.verify(values)).resolves.toEqual({
+    await expect(recovery.submit(values)).resolves.toEqual({
       status: 'verification_uncertain',
     });
     expect(mocks.verifyOtp).toHaveBeenCalledOnce();
@@ -639,10 +655,10 @@ describe('パスワード再設定リンクの検証', () => {
       mocks.verifyOtp.mockResolvedValue({ data, error: null });
       const recovery = createPasswordRecovery('recovery-token');
 
-      await expect(recovery.verify(values)).resolves.toEqual({
+      await expect(recovery.submit(values)).resolves.toEqual({
         status: 'verification_uncertain',
       });
-      await expect(recovery.verify(values)).resolves.toEqual({
+      await expect(recovery.submit(values)).resolves.toEqual({
         status: 'verification_uncertain',
       });
       expect(mocks.verifyOtp).toHaveBeenCalledOnce();
@@ -654,16 +670,20 @@ describe('パスワード再設定リンクの検証', () => {
     mocks.verifyOtp.mockReturnValueOnce(request.promise);
     const recovery = createPasswordRecovery('recovery-token');
 
-    const first = recovery.verify(values);
-    await expect(recovery.verify(values)).resolves.toEqual({
+    const first = recovery.submit(values);
+    await expect(recovery.submit(values)).resolves.toEqual({
       status: 'in_progress',
     });
     expect(mocks.verifyOtp).toHaveBeenCalledOnce();
 
     request.resolve(verificationResponse);
-    await expect(first).resolves.toEqual({ status: 'verified' });
-    await expect(recovery.verify(values)).resolves.toEqual({
-      status: 'verified',
+    await expect(first).resolves.toEqual({
+      status: 'saved',
+      signOutFailed: false,
+    });
+    await expect(recovery.submit(values)).resolves.toEqual({
+      status: 'already_saved',
+      signOutFailed: false,
     });
     expect(mocks.verifyOtp).toHaveBeenCalledOnce();
   });

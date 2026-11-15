@@ -265,5 +265,5 @@ export function createPasswordRecovery(tokenHash: string) {
     }
   }
 
-  return { verify, submit };
+  return { submit };
 }

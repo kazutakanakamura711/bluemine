@@ -30,7 +30,9 @@ const invalidLinkMessage =
 
 export function ResetPasswordForm() {
   const [tokenHash, setTokenHash] = useState<string | null>(null);
+  // URLのフラグメントを読み取り済みかを保持する。
   const initialized = useRef(false);
+  // 同じ画面で再試行するときも、検証後の一時セッションを含む処理を保持する。
   const recovery = useRef<ReturnType<typeof createPasswordRecovery> | null>(
     null,
   );
@@ -54,6 +56,8 @@ export function ResetPasswordForm() {
     defaultValues: { password: '', passwordConfirm: '' },
   });
 
+  // 再設定情報をURLに残さず、別のリンクで前の一時セッションを使わないため、
+  // フラグメントを読み取って除去し、同じタブでのリンク変更を監視する。
   useEffect(() => {
     // フラグメントはHTTPリクエストに含めず、読んだ後に現在のURLから除去する。
     // Strict Modeのeffect再実行で、除去後のURLを読み直さない。
@@ -62,11 +66,13 @@ export function ResetPasswordForm() {
       const params = new URLSearchParams(window.location.hash.slice(1));
       const hashes = params.getAll('token_hash');
       const types = params.getAll('type');
+      // token_hashとtypeがそれぞれ1つで、typeがrecoveryならtoken_hashを保存する。
       setTokenHash(
         hashes.length === 1 && types.length === 1 && types[0] === 'recovery'
           ? hashes[0]
           : '',
       );
+      // 読み取り終わった再設定情報を、ブラウザの URL 表示から取り除く。
       window.history.replaceState(
         window.history.state,
         '',
@@ -77,7 +83,9 @@ export function ResetPasswordForm() {
     const handleHashChange = () => {
       if (window.location.hash) window.location.reload();
     };
+    // フラグメントが変わったときに呼ぶ関数。
     window.addEventListener('hashchange', handleHashChange);
+    // 登録した監視を解除する処理。
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
@@ -85,7 +93,7 @@ export function ResetPasswordForm() {
     if (!tokenHash) return;
     setSubmitError(null);
     try {
-      recovery.current ??= createPasswordRecovery(tokenHash);
+      recovery.current = recovery.current ?? createPasswordRecovery(tokenHash);
       const result = await recovery.current.submit(values);
       switch (result.status) {
         case PasswordRecoveryStatus.InvalidInput:
