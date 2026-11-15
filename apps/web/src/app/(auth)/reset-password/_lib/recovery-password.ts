@@ -10,19 +10,20 @@ import {
   type RecoveryPasswordValues,
 } from './schema/recovery-password';
 
+// パスワード再設定の検証・保存状況を表し、結果に応じた画面表示に使う。
 // Verified はリンクの検証完了を表す。パスワードの保存完了ではない。
 export const PasswordRecoveryStatus = {
-  InvalidInput: 'invalid_input',
-  InProgress: 'in_progress',
-  InvalidLink: 'invalid_link',
-  VerificationUncertain: 'verification_uncertain',
-  Verified: 'verified',
-  SessionExpired: 'session_expired',
-  PasswordRejected: 'password_rejected',
-  UpdateFailed: 'update_failed',
-  UpdateUncertain: 'update_uncertain',
-  Saved: 'saved',
-  AlreadySaved: 'already_saved',
+  InvalidInput: 'invalid_input', // 入力したパスワードに問題がある。
+  InProgress: 'in_progress', // リンクの検証またはパスワードの保存が進行中。
+  InvalidLink: 'invalid_link', // リンクに必要な情報がない、またはリンクが無効。
+  VerificationUncertain: 'verification_uncertain', // リンクの検証結果が不明。
+  Verified: 'verified', // リンクの検証が完了した。
+  SessionExpired: 'session_expired', // 検証後の一時セッションを利用できない。
+  PasswordRejected: 'password_rejected', // Supabase がパスワードを拒否した。
+  UpdateFailed: 'update_failed', // パスワードの保存に失敗した。
+  UpdateUncertain: 'update_uncertain', // パスワードの保存結果が不明。
+  Saved: 'saved', // パスワードの保存が完了した。
+  AlreadySaved: 'already_saved', // パスワードの保存がすでに完了している。
 } as const;
 
 export type PasswordRecoveryStatus =
@@ -70,12 +71,13 @@ export function createPasswordRecovery(tokenHash: string) {
   const supabase = createRecoveryClient();
   // 本人のIDと一時セッションは処理内に保持し、呼び出し元へ認証情報を返さない。
   const state: {
-    isVerifying: boolean;
-    isSaving: boolean;
-    isSaved: boolean;
-    signOutFailed: boolean;
-    hasUncertainUpdate: boolean;
-    verifiedUserId: string | null;
+    isVerifying: boolean; // リンクを検証中かどうか。
+    isSaving: boolean; // パスワードを保存中かどうか。
+    isSaved: boolean; // パスワードの保存が完了したかどうか。
+    signOutFailed: boolean; // 保存後、一時セッションのログアウトに失敗したかどうか。
+    hasUncertainUpdate: boolean; // 過去の保存結果が不明なままかどうか。
+    verifiedUserId: string | null; // リンクを検証した本人のユーザー ID。
+    // 同じ再設定処理を続けられない理由。続行できる場合は null。
     blockedStatus:
       | typeof PasswordRecoveryStatus.InvalidLink
       | typeof PasswordRecoveryStatus.VerificationUncertain
@@ -160,6 +162,7 @@ export function createPasswordRecovery(tokenHash: string) {
     };
   }
 
+  // 入力内容と再設定リンクを確認し、本人のパスワードを安全に保存するための関数。
   async function submit(
     values: RecoveryPasswordValues,
   ): Promise<PasswordRecoverySubmitResult> {
