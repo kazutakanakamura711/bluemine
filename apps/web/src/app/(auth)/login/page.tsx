@@ -62,6 +62,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <LoginForm />
 
+        <p className="mt-4 text-center text-xs">
+          <Link
+            href="/forgot-password"
+            prefetch={false}
+            className="rounded px-1 py-1 font-semibold text-slate-700 underline-offset-4 hover:text-indigo-600 hover:underline focus-visible:ring-2 focus-visible:ring-indigo-500"
+          >
+            パスワードをお忘れの方
+          </Link>
+        </p>
+
         <p className="mt-5 flex flex-wrap items-center justify-center gap-x-1 text-xs text-slate-500">
           アカウントをお持ちでない方は
           <Link

@@ -6,15 +6,15 @@ const isBrowserE2E = process.env.BLUEMINE_BROWSER_E2E === '1';
 const nextConfig: NextConfig = {
   // Next.js のビルド・実行時に生成するファイルの保存先。
   distDir: isBrowserE2E ? '.next-e2e' : '.next',
-  // 招待画面の URL が移動先に伝わることや、画面の応答がキャッシュに
+  // 招待・再設定画面の URL が移動先に伝わることや、画面の応答がキャッシュに
   // 保存されることを避けるため、HTTP 応答のヘッダーを設定する。
   // Next.js がこの関数を呼び出し、指定した URL にヘッダーを付ける。
   // async は Next.js の headers 設定で使う形式で、ここで通信を行うわけではない。
   async headers() {
     return [
       {
-        // 招待画面の応答だけに、以下のヘッダーを適用する。
-        source: '/invitation',
+        // 確認情報を扱う画面の応答に、以下のヘッダーを適用する。
+        source: '/:path(invitation|reset-password)',
         headers: [
           // 画面から別の場所へ移動・通信するとき、参照元 URL を送らない。
           { key: 'Referrer-Policy', value: 'no-referrer' },
