@@ -86,6 +86,21 @@ AuthRepository の upsert が一意制約エラー（P2002）になった場合�
 リダイレクト先には元の確認情報を引き継がず、応答には `Cache-Control: private, no-store` と `Referrer-Policy: no-referrer` を付ける。
 ログイン時は `/api/auth/me` の AuthGuard で本人を確認し、アプリ側 User を取得または初回作成する。
 
+パスワード再設定メールの依頼は `(auth)/forgot-password/page.tsx` が外枠、
+`_lib/schema/forgot-password.ts` がメールアドレスの入力条件を定め、
+`_components/forgot-password-form.tsx` が入力検証・Supabaseへのメール依頼・結果表示を担当する。
+メール依頼とパスワード再設定では `reset-password/_lib/recovery-client.ts` の非永続クライアントを使用し、通常のCookieを変更しない。
+再設定メールのローカルテンプレートは `supabase/templates/recovery.html` と専用環境側の同名ファイルに定義する。
+本番のメールテンプレートとSMTPの設定は別途必要である。
+
+パスワード再設定は `(auth)/reset-password/page.tsx` をServer Componentの外枠とし、
+`_components/reset-password-form.tsx` がフラグメントの読み取り・除去、入力と結果の表示を担当する。
+`_lib/schema/recovery-password.ts` のZodスキーマをフォームと処理で共有し、
+`_lib/recovery-password.ts` が入力検証、recoveryリンクの検証、本人のセッション照合、パスワードだけの保存・再試行を担当する。
+`_lib/recovery-client.ts` のクライアントをページ内だけで保持し、通常のCookieやlocalStorageへセッションを保存しない。
+保存成功後は専用クライアントのlocal signOutを試み、保存とログアウトの結果を分けて画面に返す。
+フォームは入力と専用処理への参照を手放し、手動ログインの案内を表示する。名前は保存処理に含めない。
+
 `(app)/layout.tsx` の Server Component `ProjectsNavigationContainer` が Cookie のセッションから token を取得し、
 共通の `src/lib/auth/get-current-user.ts` で本人情報を取得する。ナビゲーション用の Project 一覧と本人情報は並行して取得する。
 取得した一覧・名前・メールを同じ `navigationProps` で `ProjectsSidebar` と `AppHeader` に渡す。
